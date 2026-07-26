@@ -190,13 +190,14 @@ class OracleConnector(BaseConnector):
     """
 
     def __init__(self, host: str, port: int = 1521,
-                 service: str = "", sid: str = "",
+                 service: str = "", service_name: str = "", sid: str = "",
                  user: str = "system", password: str = "",
                  table: str = "source"):
-        self.host     = host
-        self.port     = int(port)
-        self.service  = service
-        self.sid      = sid
+        self.host         = host
+        self.port         = int(port)
+        self.service_name = service_name or service
+        self.service      = self.service_name
+        self.sid          = sid
         self.user     = user
         self.password = password
         self.table    = table
@@ -276,8 +277,31 @@ class SqlAlchemyConnector(BaseConnector):
         url = "snowflake://user:pass@account/db/schema"
     """
 
-    def __init__(self, url: str, table: str = "source"):
-        self.url   = url
+    def __init__(
+        self,
+        url: str | None = None,
+        table: str = "source",
+        dialect: str | None = None,
+        host: str | None = None,
+        port: int | None = None,
+        database: str | None = None,
+        user: str | None = None,
+        password: str | None = None,
+    ):
+        if url:
+            self.url = url
+        elif dialect:
+            from sqlalchemy.engine import URL
+            self.url = str(URL.create(
+                drivername=dialect,
+                username=user or None,
+                password=password or None,
+                host=host or None,
+                port=int(port) if port else None,
+                database=database,
+            ))
+        else:
+            raise ValueError("url veya dialect parametresi zorunludur")
         self.table = table
         self._conn = None
         self._engine = None

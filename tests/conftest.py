@@ -60,6 +60,7 @@ class MockConnector:
 def basic_connector():
     """Temel sorgu sonuçlarıyla mock connector."""
     return MockConnector({
+        "IS NULL":   [{"null_pct": 5.0}],
         "COUNT(*)":  [{"cnt": 100}],
         "SUM":       [{"total": 9500.0}],
         "AVG":       [{"avg": 95.0}],
