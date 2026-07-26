@@ -113,12 +113,18 @@ class TestOracleConnectorIntegration:
         assert result["success"] is True
 
     def test_execute_count(self, conn):
+        result = conn.test_connection()
+        if not result["success"]:
+            pytest.skip(f"oracle-source erişilemiyor: {result.get('error')}")
         with conn as c:
             rows = c.execute("SELECT COUNT(*) AS cnt FROM employees")
         assert isinstance(rows, list)
         assert len(rows) == 1
 
     def test_execute_returns_dict_rows(self, conn):
+        result = conn.test_connection()
+        if not result["success"]:
+            pytest.skip(f"oracle-source erişilemiyor: {result.get('error')}")
         with conn as c:
             rows = c.execute("SELECT 1 AS val FROM dual")
         assert isinstance(rows[0], dict)

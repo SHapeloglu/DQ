@@ -336,7 +336,7 @@ class SqlAlchemyConnector(BaseConnector):
             self.connect()
             rows = self.execute("SELECT 1 as test")
             self.close()
-            return {"success": True, "url": self.url.split("@")[-1]}
+            return {"success": True, "url": self.url.split("@")[-1], "dialect": self.url.split("://")[0].split("+")[0]}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
