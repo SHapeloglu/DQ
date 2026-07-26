@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}DQ — Run Geçmişi{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-900">Run Geçmişi</h1>
+    <p class="text-gray-500 text-sm mt-1">Airflow'dan gelen tüm run sonuçları</p>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+    {% if runs %}
+    <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+            <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Durum</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kaynak</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">DAG / Task</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sonuç</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Zaman</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Detay</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for run in runs %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-6 py-4">
+                    <span class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full {% if run.status == 'pass' %}bg-green-400{% else %}bg-red-400{% endif %}"></span>
+                        <span class="text-sm font-medium {% if run.status == 'pass' %}text-green-700{% else %}text-red-700{% endif %}">
+                            {{ 'PASS' if run.status == 'pass' else 'FAIL' }}
+                        </span>
+                    </span>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-700">{{ run.source_name or '—' }}</td>
+                <td class="px-6 py-4">
+                    <p class="text-sm text-gray-700">{{ run.dag_id or '—' }}</p>
+                    <p class="text-xs text-gray-400">{{ run.task_id or '' }}</p>
+                </td>
+                <td class="px-6 py-4">
+                    <div class="flex items-center gap-2">
+                        <div class="flex-1 bg-gray-200 rounded-full h-1.5 w-24">
+                            <div class="h-1.5 rounded-full {% if run.status == 'pass' %}bg-green-500{% else %}bg-red-500{% endif %}"
+                                 style="width: {{ (run.passed / run.total * 100)|int if run.total else 0 }}%"></div>
+                        </div>
+                        <span class="text-xs text-gray-500">{{ run.passed }}/{{ run.total }}</span>
+                    </div>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-400">{{ run.run_at }}</td>
+                <td class="px-6 py-4 text-right">
+                    <a href="/runs/{{ run.id }}" class="text-xs text-blue-600 hover:underline">Detay →</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="px-6 py-16 text-center text-gray-400">
+        <p>Henüz run yok.</p>
+        <p class="text-sm mt-1">Airflow'da DQOperator çalışınca sonuçlar burada görünür.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

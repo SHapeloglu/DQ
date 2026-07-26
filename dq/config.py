@@ -1,0 +1,103 @@
+"""
+Config parser — TOML dosyasını veya Python dict'i Check listesine çevirir.
+
+TOML örneği (checks.toml):
+─────────────────────────────────────────────
+[source]
+type     = "postgres"
+host     = "localhost"
+port     = 5432
+database = "mydb"
+user     = "admin"
+password = "secret"
+
+[[checks]]
+name     = "Siparişler boş olmamalı"
+query    = "SELECT COUNT(*) FROM orders"
+assert   = "greater_than"
+value    = 0
+tags     = ["critical"]
+
+[[checks]]
+name     = "Null müşteri oranı < %5"
+query    = "SELECT COUNT(*) * 100.0 / COUNT(1) FROM orders WHERE customer_id IS NULL"
+assert   = "less_than"
+value    = 5.0
+tags     = ["quality"]
+─────────────────────────────────────────────
+"""
+
+from __future__ import annotations
+import tomllib                        # Python 3.11+ yerleşik; 3.10 için: pip install tomli
+from pathlib import Path
+from typing import Any
+
+from dq.engine import (
+    Check,
+    less_than, greater_than, between, equals,
+    row_count_at_least, is_not_null,
+)
+from dq.connectors import build_connector
+
+
+# Desteklenen assertion adları → fabrika fonksiyonları
+_ASSERTION_MAP = {
+    "less_than":           lambda v: less_than(v),
+    "greater_than":        lambda v: greater_than(v),
+    "between":             lambda v: between(v[0], v[1]),
+    "equals":              lambda v: equals(v),
+    "row_count_at_least":  lambda v: row_count_at_least(v),
+    "is_not_null":         lambda _: is_not_null,
+}
+
+
+def _parse_check(raw: dict[str, Any]) -> Check:
+    assertion_name = raw["assert"]
+    assertion_val  = raw.get("value")
+
+    factory = _ASSERTION_MAP.get(assertion_name)
+    if factory is None:
+        raise ValueError(
+            f"Bilinmeyen assertion: '{assertion_name}'. "
+            f"Geçerliler: {list(_ASSERTION_MAP)}"
+        )
+
+    assertion_fn = factory(assertion_val)
+
+    return Check(
+        name      = raw["name"],
+        query     = raw["query"],
+        assertion = assertion_fn,
+        expected  = f"{assertion_name}({assertion_val})",
+        tags      = raw.get("tags", []),
+    )
+
+
+class SodaConfig:
+    """
+    Tek giriş noktası: TOML dosyası veya Python dict'ten
+    connector + check listesi üretir.
+    """
+
+    def __init__(self, raw: dict[str, Any]):
+        self._raw = raw
+
+    # ── Yükleyiciler ──────────────────────────────────────────────────────
+
+    @classmethod
+    def from_toml(cls, path: str | Path) -> "SodaConfig":
+        with open(path, "rb") as f:
+            return cls(tomllib.load(f))
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "SodaConfig":
+        return cls(data)
+
+    # ── Üreticiler ────────────────────────────────────────────────────────
+
+    def build_connector(self):
+        source_cfg = dict(self._raw["source"])   # kopyala, pop'dan etkilenmesin
+        return build_connector(source_cfg)
+
+    def build_checks(self) -> list[Check]:
+        return [_parse_check(c) for c in self._raw.get("checks", [])]

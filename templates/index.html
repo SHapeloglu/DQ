@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}DQ — Genel Bakış{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-900">Genel Bakış</h1>
+    <p class="text-gray-500 text-sm mt-1">Veri kalitesi durumu</p>
+</div>
+
+<!-- İstatistik kartları -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-500">Veri Kaynağı</p>
+                <p class="text-3xl font-bold text-gray-900 mt-1">{{ source_count }}</p>
+            </div>
+            <div class="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
+                <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
+                </svg>
+            </div>
+        </div>
+        <a href="/sources" class="text-sm text-blue-600 hover:underline mt-3 block">Kaynakları yönet →</a>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-500">Aktif Kural</p>
+                <p class="text-3xl font-bold text-gray-900 mt-1">{{ check_count }}</p>
+            </div>
+            <div class="w-12 h-12 bg-green-50 rounded-lg flex items-center justify-center">
+                <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+        </div>
+        <a href="/checks" class="text-sm text-blue-600 hover:underline mt-3 block">Kuralları yönet →</a>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-500">Toplam Run</p>
+                <p class="text-3xl font-bold text-gray-900 mt-1">{{ run_count }}</p>
+            </div>
+            <div class="w-12 h-12 bg-purple-50 rounded-lg flex items-center justify-center">
+                <svg class="w-6 h-6 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+            </div>
+        </div>
+        <a href="/runs" class="text-sm text-blue-600 hover:underline mt-3 block">Run geçmişi →</a>
+    </div>
+</div>
+
+<!-- Son run'lar -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-200">
+    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <h2 class="font-semibold text-gray-900">Son Run'lar</h2>
+        <a href="/runs" class="text-sm text-blue-600 hover:underline">Tümü →</a>
+    </div>
+    {% if recent_runs %}
+    <div class="divide-y divide-gray-100">
+        {% for run in recent_runs %}
+        <a href="/runs/{{ run.id }}" class="flex items-center px-6 py-4 hover:bg-gray-50 transition">
+            <span class="w-2 h-2 rounded-full mr-3 {% if run.status == 'pass' %}bg-green-400{% else %}bg-red-400{% endif %}"></span>
+            <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-gray-900">{{ run.source_name or 'Bilinmeyen' }}</p>
+                <p class="text-xs text-gray-500">{{ run.dag_id or '—' }} · {{ run.task_id or '—' }}</p>
+            </div>
+            <div class="text-right">
+                <p class="text-sm font-medium {% if run.status == 'pass' %}text-green-600{% else %}text-red-600{% endif %}">
+                    {{ run.passed }}/{{ run.total }} geçti
+                </p>
+                <p class="text-xs text-gray-400">{{ run.run_at }}</p>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="px-6 py-12 text-center text-gray-400">
+        <p>Henüz run yok.</p>
+        <a href="/import" class="text-blue-600 hover:underline text-sm mt-1 block">TOML import ederek başla →</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

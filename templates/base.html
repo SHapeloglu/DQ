@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}DQ{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {"50":"#eff6ff","500":"#3b82f6","600":"#2563eb","700":"#1d4ed8"},
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<!-- Navbar -->
+<nav class="bg-white border-b border-gray-200 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+            <div class="flex items-center gap-8">
+                <a href="/" class="text-xl font-bold text-blue-600">DQ</a>
+                <div class="flex gap-1">
+                    <a href="/" class="px-3 py-2 rounded-md text-sm font-medium
+                        {% if request.url.path == '/' %}bg-blue-50 text-blue-700{% else %}text-gray-600 hover:text-gray-900 hover:bg-gray-100{% endif %}">
+                        Genel Bakış
+                    </a>
+                    <a href="/sources" class="px-3 py-2 rounded-md text-sm font-medium
+                        {% if '/sources' in request.url.path %}bg-blue-50 text-blue-700{% else %}text-gray-600 hover:text-gray-900 hover:bg-gray-100{% endif %}">
+                        Kaynaklar
+                    </a>
+                    <a href="/checks" class="px-3 py-2 rounded-md text-sm font-medium
+                        {% if '/checks' in request.url.path %}bg-blue-50 text-blue-700{% else %}text-gray-600 hover:text-gray-900 hover:bg-gray-100{% endif %}">
+                        Kurallar
+                    </a>
+                    <a href="/runs" class="px-3 py-2 rounded-md text-sm font-medium
+                        {% if '/runs' in request.url.path %}bg-blue-50 text-blue-700{% else %}text-gray-600 hover:text-gray-900 hover:bg-gray-100{% endif %}">
+                        Run Geçmişi
+                    </a>
+                    <a href="/wizard" class="px-3 py-2 rounded-md text-sm font-medium
+                        {% if '/wizard' in request.url.path %}bg-blue-50 text-blue-700{% else %}text-gray-600 hover:text-gray-900 hover:bg-gray-100{% endif %}">
+                        Kural Wizard
+                    </a>
+                    <a href="/import" class="px-3 py-2 rounded-md text-sm font-medium
+                        {% if '/import' in request.url.path %}bg-blue-50 text-blue-700{% else %}text-gray-600 hover:text-gray-900 hover:bg-gray-100{% endif %}">
+                        TOML Import
+                    </a>
+                </div>
+            </div>
+            <span class="text-xs text-gray-400">v0.3.0</span>
+        </div>
+    </div>
+</nav>
+
+<!-- İçerik -->
+<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    {% block content %}{% endblock %}
+</main>
+
+</body>
+</html>

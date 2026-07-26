@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}DQ — {{ 'Kaynağı Düzenle' if source else 'Yeni Kaynak' }}{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <a href="/sources" class="text-sm text-gray-500 hover:text-gray-700">← Kaynaklar</a>
+    <h1 class="text-2xl font-bold text-gray-900 mt-2">
+        {{ 'Kaynağı Düzenle' if source else 'Yeni Kaynak' }}
+    </h1>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 max-w-2xl">
+    <form method="post" action="{{ '/sources/' + source.id|string + '/edit' if source else '/sources/new' }}">
+
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Ad</label>
+            <input type="text" name="name" required
+                   value="{{ source.name if source else '' }}"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Tip</label>
+            <select name="type" id="sourceType" onchange="toggleFields()"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="csv"      {% if source and source.type == 'csv' %}selected{% endif %}>CSV</option>
+                <option value="postgres" {% if source and source.type == 'postgres' %}selected{% endif %}>PostgreSQL</option>
+                <option value="mysql"    {% if source and source.type == 'mysql' %}selected{% endif %}>MySQL</option>
+                <option value="bigquery" {% if source and source.type == 'bigquery' %}selected{% endif %}>BigQuery</option>
+                <option value="oracle"   {% if source and source.type == 'oracle'   %}selected{% endif %}>Oracle</option>
+                <option value="sqlalchemy" {% if source and source.type == 'sqlalchemy' %}selected{% endif %}>SqlAlchemy (MSSQL, Snowflake, SQLite...)</option>
+            </select>
+        </div>
+
+        <!-- CSV alanları -->
+        <div id="csvFields">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Dosya Yolu</label>
+                <input type="text" name="path"
+                       value="{{ source.config.path if source and source.config else '' }}"
+                       placeholder="/opt/airflow/dags/orders.csv"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+        </div>
+
+        <!-- Oracle alanları -->
+        <div id="oracleFields" class="hidden">
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Host</label>
+                    <input type="text" name="host" placeholder="localhost"
+                           value="{{ source.config.host if source and source.config else '' }}"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Port</label>
+                    <input type="text" name="port" placeholder="1521"
+                           value="{{ source.config.port if source and source.config else '1521' }}"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Service Name</label>
+                    <input type="text" name="service" placeholder="FREEPDB1"
+                           value="{{ source.config.service if source and source.config else '' }}"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tablo</label>
+                    <input type="text" name="table" placeholder="orders"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Kullanıcı</label>
+                    <input type="text" name="user" placeholder="system"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Şifre</label>
+                    <input type="password" name="password"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+        </div>
+
+        <!-- SqlAlchemy alanları -->
+        <div id="sqlalchemyFields" class="hidden">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Connection URL</label>
+                <input type="text" name="url" placeholder="mssql+pyodbc://user:pass@server/db?driver=ODBC+Driver+17"
+                       value="{{ source.config.url if source and source.config else '' }}"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <p class="text-xs text-gray-400 mt-1">SQLite: sqlite:///mydb.db | Snowflake: snowflake://user:pass@account/db</p>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Tablo</label>
+                <input type="text" name="table" placeholder="orders"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+        </div>
+
+<!-- DB alanları -->
+        <div id="dbFields" class="hidden">
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Host</label>
+                    <input type="text" name="host"
+                           value="{{ source.config.host if source and source.config else '' }}"
+                           placeholder="localhost"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Port</label>
+                    <input type="text" name="port"
+                           value="{{ source.config.port if source and source.config else '' }}"
+                           placeholder="5432"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Veritabanı</label>
+                <input type="text" name="database"
+                       value="{{ source.config.database if source and source.config else '' }}"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Kullanıcı</label>
+                    <input type="text" name="user"
+                           value="{{ source.config.user if source and source.config else '' }}"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Şifre</label>
+                    <input type="password" name="password"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+        </div>
+
+        <div class="flex gap-3 pt-2">
+            <button type="submit"
+                    class="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
+                {{ 'Güncelle' if source else 'Kaydet' }}
+            </button>
+            <a href="/sources" class="px-5 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
+                İptal
+            </a>
+        </div>
+    </form>
+</div>
+
+<script>
+function toggleFields() {
+    const type = document.getElementById('sourceType').value;
+    document.getElementById('csvFields').classList.toggle('hidden', type !== 'csv');
+    document.getElementById('dbFields').classList.toggle('hidden', !['postgres','mysql','bigquery'].includes(type));
+    document.getElementById('oracleFields').classList.toggle('hidden', type !== 'oracle');
+    document.getElementById('sqlalchemyFields').classList.toggle('hidden', type !== 'sqlalchemy');
+}
+toggleFields();
+</script>
+{% endblock %}

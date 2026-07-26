@@ -1,0 +1,26 @@
+# checks_dq_db.toml
+# Host makinedeki DQ veritabanını kontrol eder
+# host.docker.internal → Windows'ta host makinenin IP'si
+
+[source]
+type     = "mysql"
+host     = "host.docker.internal"
+port     = 3308
+database = "dq"
+user     = "root"
+password = "root"
+table    = "checks"
+
+[[checks]]
+name   = "DQ kural tablosu mevcut"
+query  = "SELECT COUNT(*) FROM source"
+assert = "greater_than"
+value  = 0
+tags   = ["critical"]
+
+[[checks]]
+name   = "Aktif kural var"
+query  = "SELECT COUNT(*) FROM source WHERE is_active = 1"
+assert = "greater_than"
+value  = 0
+tags   = ["quality"]

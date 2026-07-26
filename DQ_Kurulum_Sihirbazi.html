@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DQ — Kurulum Sihirbazı</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0f1e;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #1e2d45;
+    --accent: #3b82f6;
+    --accent2: #06b6d4;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --error: #ef4444;
+    --text: #e2e8f0;
+    --text2: #94a3b8;
+    --text3: #475569;
+    --mono: 'DM Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Arka plan grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(59,130,246,.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(59,130,246,.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  /* Glow efekti */
+  body::after {
+    content: '';
+    position: fixed;
+    top: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 800px;
+    height: 400px;
+    background: radial-gradient(ellipse, rgba(59,130,246,.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .layout {
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* Sol sidebar */
+  .sidebar {
+    width: 280px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 2rem 1.5rem;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .logo {
+    font-size: 1.8rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    color: var(--accent);
+    margin-bottom: 0.25rem;
+  }
+
+  .logo-sub {
+    font-size: 0.75rem;
+    color: var(--text3);
+    font-family: var(--mono);
+    letter-spacing: 0.08em;
+    margin-bottom: 2.5rem;
+  }
+
+  .steps-nav { flex: 1; }
+
+  .step-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin-bottom: 4px;
+    cursor: pointer;
+    transition: all .2s;
+    border: 1px solid transparent;
+  }
+
+  .step-nav-item:hover { background: var(--surface2); }
+
+  .step-nav-item.active {
+    background: rgba(59,130,246,.1);
+    border-color: rgba(59,130,246,.3);
+  }
+
+  .step-nav-item.done .step-num {
+    background: var(--success);
+    border-color: var(--success);
+    color: white;
+  }
+
+  .step-nav-item.done .step-nav-label { color: var(--text2); }
+
+  .step-num {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--text3);
+    flex-shrink: 0;
+    transition: all .2s;
+  }
+
+  .step-nav-item.active .step-num {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(59,130,246,.1);
+  }
+
+  .step-nav-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text2);
+  }
+
+  .step-nav-item.active .step-nav-label { color: var(--text); }
+
+  .sidebar-footer {
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.72rem;
+    color: var(--text3);
+    font-family: var(--mono);
+  }
+
+  /* Ana içerik */
+  .main {
+    flex: 1;
+    padding: 3rem 3.5rem;
+    max-width: 780px;
+  }
+
+  .step-page { display: none; animation: fadeIn .3s ease; }
+  .step-page.active { display: block; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .step-header { margin-bottom: 2rem; }
+
+  .step-badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    color: var(--accent2);
+    border: 1px solid rgba(6,182,212,.3);
+    background: rgba(6,182,212,.06);
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-bottom: 0.75rem;
+  }
+
+  .step-title {
+    font-size: 1.9rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--text);
+    line-height: 1.1;
+    margin-bottom: 0.5rem;
+  }
+
+  .step-desc {
+    font-size: 0.92rem;
+    color: var(--text2);
+    line-height: 1.6;
+  }
+
+  /* Kart */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .card-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--text3);
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+
+  /* Kod bloğu */
+  .code-block {
+    background: #060b14;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    margin: 0.75rem 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    position: relative;
+  }
+
+  .code-block code {
+    font-family: var(--mono);
+    font-size: 0.83rem;
+    color: #7dd3fc;
+    flex: 1;
+    line-height: 1.7;
+  }
+
+  .copy-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text3);
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all .15s;
+  }
+
+  .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .copy-btn.copied { border-color: var(--success); color: var(--success); }
+
+  /* Checklist */
+  .checklist { list-style: none; }
+  .checklist li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.88rem;
+    color: var(--text2);
+    line-height: 1.5;
+  }
+  .checklist li:last-child { border-bottom: none; }
+  .checklist li::before {
+    content: '○';
+    color: var(--text3);
+    flex-shrink: 0;
+    margin-top: 1px;
+    font-size: 0.9rem;
+  }
+  .checklist li.done::before { content: '✓'; color: var(--success); }
+
+  /* Input */
+  .field { margin-bottom: 1rem; }
+  .field label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text2);
+    margin-bottom: 6px;
+    letter-spacing: 0.02em;
+  }
+  .field input {
+    width: 100%;
+    background: #060b14;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    color: var(--text);
+    outline: none;
+    transition: border-color .15s;
+  }
+  .field input:focus { border-color: var(--accent); }
+
+  /* Alert */
+  .alert {
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 0.83rem;
+    line-height: 1.5;
+    margin: 0.75rem 0;
+    display: flex;
+    gap: 10px;
+  }
+  .alert.info { background: rgba(59,130,246,.08); border: 1px solid rgba(59,130,246,.2); color: #93c5fd; }
+  .alert.warn { background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.2); color: #fcd34d; }
+  .alert.success { background: rgba(16,185,129,.08); border: 1px solid rgba(16,185,129,.2); color: #6ee7b7; }
+
+  /* URL tablosu */
+  .url-table { width: 100%; border-collapse: collapse; }
+  .url-table th {
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text3);
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .url-table td {
+    padding: 8px 12px;
+    font-size: 0.82rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text2);
+  }
+  .url-table td:nth-child(2) { font-family: var(--mono); color: var(--accent2); font-size: 0.78rem; }
+  .url-table tr:last-child td { border-bottom: none; }
+
+  /* Butonlar */
+  .btn-row { display: flex; gap: 12px; margin-top: 2rem; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-family: var(--sans);
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .2s;
+    border: none;
+    text-decoration: none;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+  }
+  .btn-primary:hover { background: #2563eb; transform: translateY(-1px); }
+
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text2);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--text); }
+
+  .btn-success {
+    background: var(--success);
+    color: white;
+  }
+  .btn-success:hover { background: #059669; }
+
+  /* Progress bar */
+  .progress-bar {
+    height: 2px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-bottom: 2rem;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 2px;
+    transition: width .4s ease;
+  }
+
+  /* Dosya listesi */
+  .file-list { list-style: none; }
+  .file-list li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 0.8rem;
+  }
+  .file-list li:last-child { border-bottom: none; }
+  .file-badge {
+    font-size: 0.65rem;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-family: var(--sans);
+    font-weight: 600;
+  }
+  .file-badge.web { background: rgba(59,130,246,.15); color: #93c5fd; }
+  .file-badge.airflow { background: rgba(16,185,129,.15); color: #6ee7b7; }
+  .file-badge.config { background: rgba(245,158,11,.15); color: #fcd34d; }
+
+  /* Welcome ekranı */
+  .welcome-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    margin: 1.5rem 0;
+  }
+  .feature-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem;
+    transition: border-color .2s;
+  }
+  .feature-card:hover { border-color: rgba(59,130,246,.4); }
+  .feature-icon {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+  }
+  .feature-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 0.25rem;
+  }
+  .feature-desc {
+    font-size: 0.75rem;
+    color: var(--text3);
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="logo">DQ</div>
+    <div class="logo-sub">KURULUM SİHİRBAZI v0.3.0</div>
+
+    <nav class="steps-nav">
+      <div class="step-nav-item active" onclick="goTo(0)">
+        <div class="step-num">1</div>
+        <div class="step-nav-label">Hoş geldin</div>
+      </div>
+      <div class="step-nav-item" onclick="goTo(1)">
+        <div class="step-num">2</div>
+        <div class="step-nav-label">Gereksinimler</div>
+      </div>
+      <div class="step-nav-item" onclick="goTo(2)">
+        <div class="step-num">3</div>
+        <div class="step-nav-label">MySQL kurulumu</div>
+      </div>
+      <div class="step-nav-item" onclick="goTo(3)">
+        <div class="step-num">4</div>
+        <div class="step-nav-label">Python paketleri</div>
+      </div>
+      <div class="step-nav-item" onclick="goTo(4)">
+        <div class="step-num">5</div>
+        <div class="step-nav-label">Bağlantı ayarları</div>
+      </div>
+      <div class="step-nav-item" onclick="goTo(5)">
+        <div class="step-num">6</div>
+        <div class="step-nav-label">Uygulamayı başlat</div>
+      </div>
+      <div class="step-nav-item" onclick="goTo(6)">
+        <div class="step-num">7</div>
+        <div class="step-nav-label">Airflow entegrasyonu</div>
+      </div>
+      <div class="step-nav-item" onclick="goTo(7)">
+        <div class="step-num">8</div>
+        <div class="step-nav-label">BI bağlantısı</div>
+      </div>
+      <div class="step-nav-item" onclick="goTo(8)">
+        <div class="step-num">9</div>
+        <div class="step-nav-label">Tamamlandı 🎉</div>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      DQ — Veri Kalitesi Platformu<br>
+      Açık kaynak · Ücretsiz
+    </div>
+  </div>
+
+  <!-- Ana içerik -->
+  <div class="main">
+
+    <!-- Progress bar -->
+    <div class="progress-bar">
+      <div class="progress-fill" id="progress" style="width:11%"></div>
+    </div>
+
+    <!-- ADIM 1: Hoş geldin -->
+    <div class="step-page active" id="step-0">
+      <div class="step-header">
+        <div class="step-badge">BAŞLANGIÇ</div>
+        <h1 class="step-title">DQ'ya hoş geldin</h1>
+        <p class="step-desc">Bu sihirbaz seni DQ kurulumundan geçirecek. Yaklaşık 10 dakika sürer.</p>
+      </div>
+
+      <div class="welcome-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🔍</div>
+          <div class="feature-title">Kural Wizard</div>
+          <div class="feature-desc">SQL bilmeden veri kalitesi kuralı oluştur</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">⚡</div>
+          <div class="feature-title">Airflow</div>
+          <div class="feature-desc">DAG'larında DQOperator ile otomatik çalıştır</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📊</div>
+          <div class="feature-title">Power BI / Qlik</div>
+          <div class="feature-desc">OData ve REST API ile BI araçlarına bağlan</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📁</div>
+          <div class="feature-title">TOML Import</div>
+          <div class="feature-desc">Mevcut kural dosyalarını kolayca içe aktar</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔔</div>
+          <div class="feature-title">Anomali Tespiti</div>
+          <div class="feature-desc">Geçmiş veriye bakarak sapmaları otomatik bul</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📋</div>
+          <div class="feature-title">Veri Kontratı</div>
+          <div class="feature-desc">Şema, kalite ve tazelik kurallarını tek yerde</div>
+        </div>
+      </div>
+
+      <div class="alert info">
+        ℹ️ &nbsp;Bu sihirbaz kurulum komutlarını <strong>otomatik kopyalar</strong>. Her adımda terminale yapıştırman yeterli.
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="next()">Kuruluma başla →</button>
+      </div>
+    </div>
+
+    <!-- ADIM 2: Gereksinimler -->
+    <div class="step-page" id="step-1">
+      <div class="step-header">
+        <div class="step-badge">ADIM 1</div>
+        <h1 class="step-title">Gereksinimler</h1>
+        <p class="step-desc">Başlamadan önce şunların kurulu olduğunu kontrol et.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Zorunlu</div>
+        <ul class="checklist">
+          <li>Python 3.8 veya üzeri kurulu olmalı</li>
+          <li>MySQL 8.0 kurulu ve çalışıyor olmalı</li>
+          <li>pip (Python paket yöneticisi) kurulu olmalı</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Opsiyonel</div>
+        <ul class="checklist">
+          <li>Apache Airflow 2.7.x — Docker ile kurulu (Airflow entegrasyonu için)</li>
+          <li>Power BI / Qlik Sense — BI bağlantısı için</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Versiyon kontrol komutları</div>
+        <div class="code-block">
+          <code>python --version</code>
+          <button class="copy-btn" onclick="cp(this,'python --version')">kopyala</button>
+        </div>
+        <div class="code-block">
+          <code>pip --version</code>
+          <button class="copy-btn" onclick="cp(this,'pip --version')">kopyala</button>
+        </div>
+        <div class="code-block">
+          <code>mysql --version</code>
+          <button class="copy-btn" onclick="cp(this,'mysql --version')">kopyala</button>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="prev()">← Geri</button>
+        <button class="btn btn-primary" onclick="next()">Her şey hazır →</button>
+      </div>
+    </div>
+
+    <!-- ADIM 3: MySQL -->
+    <div class="step-page" id="step-2">
+      <div class="step-header">
+        <div class="step-badge">ADIM 2</div>
+        <h1 class="step-title">MySQL veritabanı oluştur</h1>
+        <p class="step-desc">DQ sonuçları ve kuralları MySQL'de saklanır. Tek seferlik kurulum.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">MySQL Workbench veya komut satırından çalıştır</div>
+        <div class="code-block">
+          <code>CREATE DATABASE dq CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;</code>
+          <button class="copy-btn" onclick="cp(this,'CREATE DATABASE dq CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;')">kopyala</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Komut satırından bağlanmak istersen</div>
+        <div class="code-block">
+          <code>mysql -u root -p</code>
+          <button class="copy-btn" onclick="cp(this,'mysql -u root -p')">kopyala</button>
+        </div>
+        <div class="alert warn">⚠️ &nbsp;Şifreni sorduktan sonra yukarıdaki CREATE DATABASE komutunu yapıştır.</div>
+      </div>
+
+      <div class="alert success">✓ &nbsp;Veritabanı oluşturulunca DQ ilk başlatmada tabloları otomatik yaratır, elle tablo oluşturmak gerekmez.</div>
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="prev()">← Geri</button>
+        <button class="btn btn-primary" onclick="next()">Veritabanı hazır →</button>
+      </div>
+    </div>
+
+    <!-- ADIM 4: Python paketleri -->
+    <div class="step-page" id="step-3">
+      <div class="step-header">
+        <div class="step-badge">ADIM 3</div>
+        <h1 class="step-title">Python paketlerini kur</h1>
+        <p class="step-desc">dq_web_wizard.zip'i bir klasöre çıkar, o klasöre gir ve aşağıdaki komutu çalıştır.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Klasöre gir</div>
+        <div class="code-block">
+          <code>cd dq_web</code>
+          <button class="copy-btn" onclick="cp(this,'cd dq_web')">kopyala</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Paketleri kur (tek komut)</div>
+        <div class="code-block">
+          <code>pip install fastapi uvicorn jinja2 python-multipart pymysql python-dotenv tomli pydantic</code>
+          <button class="copy-btn" onclick="cp(this,'pip install fastapi uvicorn jinja2 python-multipart pymysql python-dotenv tomli pydantic')">kopyala</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Paket açıklamaları</div>
+        <ul class="checklist">
+          <li><strong>fastapi</strong> — Web API ve arayüz framework'ü</li>
+          <li><strong>uvicorn</strong> — Uygulama sunucusu</li>
+          <li><strong>jinja2</strong> — HTML şablon motoru</li>
+          <li><strong>pymysql</strong> — MySQL bağlantısı</li>
+          <li><strong>python-dotenv</strong> — .env dosyası desteği</li>
+          <li><strong>tomli</strong> — TOML dosyası okuma (Python 3.8-3.10 için)</li>
+          <li><strong>pydantic</strong> — Veri doğrulama</li>
+        </ul>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="prev()">← Geri</button>
+        <button class="btn btn-primary" onclick="next()">Paketler kuruldu →</button>
+      </div>
+    </div>
+
+    <!-- ADIM 5: Bağlantı ayarları -->
+    <div class="step-page" id="step-4">
+      <div class="step-header">
+        <div class="step-badge">ADIM 4</div>
+        <h1 class="step-title">Bağlantı ayarları</h1>
+        <p class="step-desc">MySQL bağlantı bilgilerini gir. Bu bilgiler .env dosyasına yazılacak.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">MySQL bağlantı bilgileri</div>
+        <div class="field">
+          <label>Host</label>
+          <input type="text" id="db-host" value="localhost" oninput="updateEnv()">
+        </div>
+        <div class="field">
+          <label>Port</label>
+          <input type="text" id="db-port" value="3306" oninput="updateEnv()">
+        </div>
+        <div class="field">
+          <label>Kullanıcı adı</label>
+          <input type="text" id="db-user" value="root" oninput="updateEnv()">
+        </div>
+        <div class="field">
+          <label>Şifre</label>
+          <input type="password" id="db-pass" value="root" oninput="updateEnv()">
+        </div>
+        <div class="field">
+          <label>Veritabanı adı</label>
+          <input type="text" id="db-name" value="dq" oninput="updateEnv()">
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">.env dosyası içeriği — kopyala yapıştır</div>
+        <div class="code-block">
+          <code id="env-preview">DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=root
+DB_NAME=dq
+APP_HOST=0.0.0.0
+APP_PORT=8000</code>
+          <button class="copy-btn" id="env-copy-btn" onclick="cpEnv()">kopyala</button>
+        </div>
+        <div class="alert info">ℹ️ &nbsp;dq_web klasöründeki <strong>.env</strong> dosyasını metin editörü ile aç, içeriği değiştir.</div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="prev()">← Geri</button>
+        <button class="btn btn-primary" onclick="next()">.env güncellendi →</button>
+      </div>
+    </div>
+
+    <!-- ADIM 6: Çalıştır -->
+    <div class="step-page" id="step-5">
+      <div class="step-header">
+        <div class="step-badge">ADIM 5</div>
+        <h1 class="step-title">Uygulamayı başlat</h1>
+        <p class="step-desc">dq_web klasöründeyken aşağıdaki komutu çalıştır.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Uygulamayı başlat</div>
+        <div class="code-block">
+          <code>uvicorn main:app --reload --host 0.0.0.0 --port 8000</code>
+          <button class="copy-btn" onclick="cp(this,'uvicorn main:app --reload --host 0.0.0.0 --port 8000')">kopyala</button>
+        </div>
+        <div class="alert success">✓ &nbsp;Terminalde "Application startup complete" yazısını görünce uygulama hazır.</div>
+        <div class="alert warn">⚠️ &nbsp;Terminal penceresi açık kalmalı. Kapatırsan uygulama durur.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Tarayıcıda aç</div>
+        <table class="url-table">
+          <tr><th>Sayfa</th><th>URL</th></tr>
+          <tr><td>Ana sayfa</td><td>http://localhost:8000</td></tr>
+          <tr><td>Kural Wizard</td><td>http://localhost:8000/wizard</td></tr>
+          <tr><td>TOML Import</td><td>http://localhost:8000/import</td></tr>
+          <tr><td>Run Geçmişi</td><td>http://localhost:8000/runs</td></tr>
+        </table>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="prev()">← Geri</button>
+        <button class="btn btn-success" onclick="window.open('http://localhost:8000','_blank')">🚀 Uygulamayı aç</button>
+        <button class="btn btn-primary" onclick="next()">Devam →</button>
+      </div>
+    </div>
+
+    <!-- ADIM 7: Airflow -->
+    <div class="step-page" id="step-6">
+      <div class="step-header">
+        <div class="step-badge">ADIM 6 — OPSİYONEL</div>
+        <h1 class="step-title">Airflow entegrasyonu</h1>
+        <p class="step-desc">Airflow kullanmıyorsan bu adımı atlayabilirsin.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">dq_airflow.zip'den şu dosyaları kopyala</div>
+        <ul class="file-list">
+          <li>
+            <span class="file-badge airflow">plugins</span>
+            dq_operator.py → apache-airflow-docker\plugins\dq_operator.py
+          </li>
+          <li>
+            <span class="file-badge airflow">dags</span>
+            dq\ klasörü → apache-airflow-docker\dags\dq\
+          </li>
+          <li>
+            <span class="file-badge config">config</span>
+            checks.toml → apache-airflow-docker\dags\checks.toml
+          </li>
+          <li>
+            <span class="file-badge config">config</span>
+            orders.csv → apache-airflow-docker\dags\orders.csv
+          </li>
+          <li>
+            <span class="file-badge airflow">dags</span>
+            example_dag.py → apache-airflow-docker\dags\example_dag.py
+          </li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Docker'ı yeniden başlat</div>
+        <div class="code-block">
+          <code>cd C:\Users\yeliz\Desktop\apache-airflow-docker
+docker-compose restart</code>
+          <button class="copy-btn" onclick="cp(this,'cd C:\\Users\\yeliz\\Desktop\\apache-airflow-docker\ndocker-compose restart')">kopyala</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Scheduler'a tomli kur</div>
+        <p style="font-size:.83rem;color:var(--text2);margin-bottom:.75rem;">
+          Docker Desktop → Containers → airflow-scheduler → Exec sekmesi:
+        </p>
+        <div class="code-block">
+          <code>pip install tomli</code>
+          <button class="copy-btn" onclick="cp(this,'pip install tomli')">kopyala</button>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="prev()">← Geri</button>
+        <button class="btn btn-secondary" onclick="next()">Airflow yok, atla →</button>
+        <button class="btn btn-primary" onclick="next()">Kuruldu →</button>
+      </div>
+    </div>
+
+    <!-- ADIM 8: BI bağlantısı -->
+    <div class="step-page" id="step-7">
+      <div class="step-header">
+        <div class="step-badge">ADIM 7 — OPSİYONEL</div>
+        <h1 class="step-title">BI araç bağlantısı</h1>
+        <p class="step-desc">Power BI, Qlik veya Superset ile DQ sonuçlarını görselleştir.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Power BI — OData bağlantısı</div>
+        <ul class="checklist">
+          <li>Power BI Desktop'ı aç</li>
+          <li>Veri Al → OData Akışı seç</li>
+          <li>URL gir: <code style="font-family:var(--mono);color:var(--accent2)">http://localhost:8000/odata/Results</code></li>
+          <li>Bağlan ve tabloları yükle</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Qlik Sense — REST bağlantısı</div>
+        <ul class="checklist">
+          <li>Yeni bağlantı oluştur</li>
+          <li>REST Connector seç</li>
+          <li>URL: <code style="font-family:var(--mono);color:var(--accent2)">http://localhost:8000/api/results</code></li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-title">CSV export (her BI aracı için)</div>
+        <div class="code-block">
+          <code>http://localhost:8000/api/results.csv</code>
+          <button class="copy-btn" onclick="cp(this,'http://localhost:8000/api/results.csv')">kopyala</button>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="prev()">← Geri</button>
+        <button class="btn btn-primary" onclick="next()">Tamamla →</button>
+      </div>
+    </div>
+
+    <!-- ADIM 9: Tamamlandı -->
+    <div class="step-page" id="step-8">
+      <div class="step-header">
+        <div class="step-badge">TAMAMLANDI</div>
+        <h1 class="step-title">Kurulum tamamlandı 🎉</h1>
+        <p class="step-desc">DQ kullanıma hazır. Nereden başlayacağını bilmiyorsan aşağıdaki sırayı takip et.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">İlk adımlar</div>
+        <ul class="checklist">
+          <li>Wizard ile ilk kuralı oluştur — <code style="font-family:var(--mono);color:var(--accent2)">localhost:8000/wizard</code></li>
+          <li>Eski TOML dosyan varsa import et — <code style="font-family:var(--mono);color:var(--accent2)">localhost:8000/import</code></li>
+          <li>Airflow kurulduysa DAG'ı tetikle — <code style="font-family:var(--mono);color:var(--accent2)">localhost:8080</code></li>
+          <li>Run sonuçlarını gör — <code style="font-family:var(--mono);color:var(--accent2)">localhost:8000/runs</code></li>
+          <li>BI aracını bağla — OData veya REST</li>
+        </ul>
+      </div>
+
+      <div class="alert success">
+        ✓ &nbsp;Sorunla karşılaşırsan <strong>kurulum rehberi PDF</strong>'ini inceleyebilirsin.
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="window.open('http://localhost:8000','_blank')">🚀 DQ'yu aç</button>
+        <button class="btn btn-secondary" onclick="window.open('http://localhost:8000/wizard','_blank')">Kural Wizard →</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let current = 0;
+const total = 9;
+
+function goTo(n) {
+  document.querySelectorAll('.step-page').forEach((p,i) => {
+    p.classList.toggle('active', i === n);
+  });
+  document.querySelectorAll('.step-nav-item').forEach((item, i) => {
+    item.classList.remove('active','done');
+    if (i === n) item.classList.add('active');
+    if (i < n)  item.classList.add('done');
+  });
+  document.getElementById('progress').style.width = ((n+1)/total*100) + '%';
+  current = n;
+  window.scrollTo(0,0);
+}
+
+function next() { if(current < total-1) goTo(current+1); }
+function prev() { if(current > 0) goTo(current-1); }
+
+function cp(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'kopyalandı ✓';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'kopyala'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function updateEnv() {
+  const h = document.getElementById('db-host').value;
+  const p = document.getElementById('db-port').value;
+  const u = document.getElementById('db-user').value;
+  const pw = document.getElementById('db-pass').value;
+  const n = document.getElementById('db-name').value;
+  document.getElementById('env-preview').textContent =
+    `DB_HOST=${h}\nDB_PORT=${p}\nDB_USER=${u}\nDB_PASSWORD=${pw}\nDB_NAME=${n}\nAPP_HOST=0.0.0.0\nAPP_PORT=8000`;
+}
+
+function cpEnv() {
+  const text = document.getElementById('env-preview').textContent;
+  cp(document.getElementById('env-copy-btn'), text);
+}
+</script>
+</body>
+</html>

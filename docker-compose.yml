@@ -1,0 +1,43 @@
+services:
+
+  # ── MySQL ──────────────────────────────────────────────────────────────────
+  dq-db:
+    image: mysql:8.0
+    container_name: dq-db
+    restart: always
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: dq
+    ports:
+      - "3308:3306"
+    volumes:
+      - dq-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── DQ Web UI ──────────────────────────────────────────────────────────────
+  dq-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dq-web
+    restart: always
+    depends_on:
+      dq-db:
+        condition: service_healthy
+    env_file:
+      - .env
+    ports:
+      - "8002:8000"
+    extra_hosts:
+      # Host makinedeki MySQL ve Airflow DB'ye erişim için
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./dags:/app/dags    # TOML ve CSV dosyaları buraya koyulur
+
+volumes:
+  dq-mysql-data:

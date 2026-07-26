@@ -1,0 +1,784 @@
+{% extends "base.html" %}
+{% block title %}DQ — Kural Oluştur{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-900">Kural Oluştur</h1>
+    <p class="text-gray-500 text-sm mt-1">SQL ve TOML bilmeden veri kalitesi kuralı oluştur</p>
+</div>
+
+{% if msg %}
+<div class="mb-4 px-4 py-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">{{ msg }}</div>
+{% endif %}
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+    <!-- Sol: Wizard -->
+    <div class="space-y-4">
+
+        <!-- 1. Kaynak -->
+        <div class="bg-white rounded-xl border border-gray-200 p-5">
+            <p class="text-sm font-medium text-gray-900 mb-3">1. Veri kaynağı</p>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Kaynak</label>
+                    <select id="src" onchange="loadColumns()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        {% for s in sources %}
+                        <option value="{{ s.id }}" data-type="{{ s.type }}">{{ s.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Tablo</label>
+                    <input type="text" id="tbl" value="source" onchange="update()"
+                           class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+
+            <!-- Kolon listesi (kaynak seçilince dolar) -->
+            <div id="columns-row" class="mt-3 hidden">
+                <label class="block text-xs text-gray-500 mb-1">Kolonlar — seçmek için tıkla</label>
+                <div id="columns-list" class="flex flex-wrap gap-2"></div>
+            </div>
+            <button id="profile-btn" onclick="runProfile()"
+                    class="mt-3 w-full py-2 border border-gray-200 rounded-lg text-xs text-gray-500 hover:bg-gray-50 hover:border-blue-300 hover:text-blue-600 transition">
+                Detaylı Profil çalıştır — istatistik + kural önerisi
+            </button>
+        </div>
+
+        <!-- Profil sonuçları -->
+        <div id="profile-results" class="hidden bg-white rounded-xl border border-gray-200 p-5"></div>
+
+        <!-- 2. Kontrol tipi — 20 kontrol, kategorili -->
+        <div class="bg-white rounded-xl border border-gray-200 p-5">
+            <div class="flex items-center justify-between mb-3">
+                <p class="text-sm font-medium text-gray-900">2. Kontrol tipi</p>
+                <input type="text" id="chip-search" placeholder="Ara..." onkeyup="filterChips()"
+                       class="text-xs border border-gray-200 rounded-lg px-2 py-1 w-32 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            </div>
+
+            <!-- Temel kontroller -->
+            <p class="text-xs text-gray-400 font-medium mb-2 mt-1">TEMEL</p>
+            <div class="flex flex-wrap gap-2 mb-3" id="chips">
+                <button onclick="selectChip(this,'null')" class="chip active px-3 py-1.5 rounded-full text-sm border border-blue-200 bg-blue-50 text-blue-700" data-label="Boş değer NULL kontrol">Boş değer</button>
+                <button onclick="selectChip(this,'rowcount')" class="chip px-3 py-1.5 rounded-full text-sm border border-gray-200 text-gray-600 hover:bg-gray-50" data-label="Satır sayısı row count">Satır sayısı</button>
+                <button onclick="selectChip(this,'duplicate')" class="chip px-3 py-1.5 rounded-full text-sm border border-gray-200 text-gray-600 hover:bg-gray-50" data-label="Duplicate tekrar mükerrer unique">Duplicate</button>
+                <button onclick="selectChip(this,'freshness')" class="chip px-3 py-1.5 rounded-full text-sm border border-gray-200 text-gray-600 hover:bg-gray-50" data-label="Tazelik taze freshness tarih">Tazelik</button>
+            </div>
+
+            <!-- Sayısal kontroller -->
+            <p class="text-xs text-gray-400 font-medium mb-2">SAYISAL</p>
+            <div class="flex flex-wrap gap-2 mb-3">
+                <button onclick="selectChip(this,'range')" class="chip px-3 py-1.5 rounded-full text-sm border border-gray-200 text-gray-600 hover:bg-gray-50" data-label="Değer aralığı min max between range">Değer aralığı</button>
+                <button onclick="selectChip(this,'ratio')" class="chip px-3 py-1.5 rounded-full text-sm border border-gray-200 text-gray-600 hover:bg-gray-50" data-label="Oran yüzde ratio percent">Oran</button>
+                <button onclick="selectChip(this,'negative')" class="chip px-3 py-1.5 rounded-full text-sm border border-gray-200 text-gray-600 hover:bg-gray-50" data-label="Negatif değer bakiye tutar">Negatif değer</button>
+                <button onclick="selectChip(this,'stddev')" class="chip px-3 py-1.5 rounded-full text-sm border border-gray-200 text-gray-600 hover:bg-gray-50" data-label="Standart sapma istatistik dağılım">Std. sapma</button>
+                <button onclick="selectChip(this,'sum_match')" class="chip px-3 py-1.5 rounded-full text-sm border border-gray-200 text-gray-600 hover:bg-gray-50" data-label="Tutar tutarsızlık başlık satır toplam fatura">Tutar tutarsızlığı</button>
+            </div>
+
+            <!-- Format / Metin kontrolleri -->
+            <p class="text-xs text-gray-400 font-medium mb-2">FORMAT / METİN</p>
+            <div class="flex flex-wrap gap-2 mb-3">
+                <button onclick="selectChip(this,'regex')" class="chip px-3 py-1.5 rounded-full text-sm border border-gray-200 text-gray-600 hover:bg-gray-50" data-label="Regex format metin pattern desen">Regex / Format</button>
+                <button onclick="selectChip(this,'email')" class="chip px-3 py-1.5 rounded-full text-sm border border-gray-200 text-gray-600 hover:bg-gray-50" data-label="E-posta email format">E-posta</button>
+                <button onclick="selectChip(this,'phone')" class="chip px-3 py-1.5 rounded-full text-sm border border-gray-200 text-gray-600 hover:bg-gray-50" data-label="Telefon phone numara">Telefon</button>
+                <button onclick="selectChip(this,'empty_string')" class="chip px-3 py-1.5 rounded-full text-sm border border-gray-200 text-gray-600 hover:bg-gray-50" data-label="Boş string empty string whitespace">Boş string</button>
+                <button onclick="selectChip(this,'value_set')" class="chip px-3 py-1.5 rounded-full text-sm border border-gray-200 text-gray-600 hover:bg-gray-50" data-label="Değer kümesi set enum liste KDV">Değer kümesi</button>
+            </div>
+
+            <!-- Tarih / Zaman kontrolleri -->
+            <p class="text-xs text-gray-400 font-medium mb-2">TARİH / ZAMAN</p>
+            <div class="flex flex-wrap gap-2 mb-3">
+                <button onclick="selectChip(this,'date_order')" class="chip px-3 py-1.5 rounded-full text-sm border border-gray-200 text-gray-600 hover:bg-gray-50" data-label="Tarih sırası vade başlangıç bitiş order">Tarih sırası</button>
+                <button onclick="selectChip(this,'date_range')" class="chip px-3 py-1.5 rounded-full text-sm border border-gray-200 text-gray-600 hover:bg-gray-50" data-label="Tarih aralığı geçmiş gelecek date range">Tarih aralığı</button>
+                <button onclick="selectChip(this,'date_format')" class="chip px-3 py-1.5 rounded-full text-sm border border-gray-200 text-gray-600 hover:bg-gray-50" data-label="Tarih format YYYY-MM-DD ISO">Tarih formatı</button>
+            </div>
+
+            <!-- İlişki / Referans kontrolleri -->
+            <p class="text-xs text-gray-400 font-medium mb-2">İLİŞKİ / REFERANS</p>
+            <div class="flex flex-wrap gap-2">
+                <button onclick="selectChip(this,'reference')" class="chip px-3 py-1.5 rounded-full text-sm border border-gray-200 text-gray-600 hover:bg-gray-50" data-label="Referans bütünlük foreign key lookup">Referans bütünlüğü</button>
+                <button onclick="selectChip(this,'cross_table')" class="chip px-3 py-1.5 rounded-full text-sm border border-gray-200 text-gray-600 hover:bg-gray-50" data-label="Çapraz tablo karşılaştırma iki tablo fark">Çapraz tablo</button>
+                <button onclick="selectChip(this,'custom')" class="chip px-3 py-1.5 rounded-full text-sm border border-gray-200 text-gray-600 hover:bg-gray-50" data-label="Özel SQL custom">Özel SQL</button>
+            </div>
+        </div>
+
+        <!-- 3. Parametreler -->
+        <div class="bg-white rounded-xl border border-gray-200 p-5">
+            <p class="text-sm font-medium text-gray-900 mb-3">3. Parametreler</p>
+
+            <!-- Boş değer -->
+            <div id="p-null" class="space-y-3">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Kolon</label>
+                    <select id="col-null" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option>customer_id</option><option>amount</option><option>created_at</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Maks. null % (0 = hiç olmasın)</label>
+                        <input type="number" id="null-thresh" value="0" min="0" max="100" onchange="update()"
+                               class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Etiket</label>
+                        <input type="text" id="null-tag" value="critical" onchange="update()"
+                               class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Satır sayısı -->
+            <div id="p-rowcount" class="hidden grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">En az satır sayısı</label>
+                    <input type="number" id="rc-min" value="1" min="1" onchange="update()"
+                           class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Etiket</label>
+                    <input type="text" id="rc-tag" value="critical" onchange="update()"
+                           class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+
+            <!-- Değer aralığı -->
+            <div id="p-range" class="hidden space-y-3">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Kolon</label>
+                    <select id="col-range" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option>amount</option><option>customer_id</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Min</label>
+                        <input type="number" id="range-min" value="1" onchange="update()"
+                               class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Max</label>
+                        <input type="number" id="range-max" value="9999" onchange="update()"
+                               class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Etiket</label>
+                        <input type="text" id="range-tag" value="quality" onchange="update()"
+                               class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Duplicate -->
+            <div id="p-duplicate" class="hidden space-y-3">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Kolon</label>
+                    <select id="col-dup" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option>customer_id</option><option>amount</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Etiket</label>
+                    <input type="text" id="dup-tag" value="quality" onchange="update()"
+                           class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+
+            <!-- Tazelik -->
+            <div id="p-freshness" class="hidden space-y-3">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Tarih kolonu</label>
+                    <select id="col-fresh" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option>created_at</option><option>updated_at</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Maks. yaş (saat)</label>
+                        <input type="number" id="fresh-hours" value="24" min="1" onchange="update()"
+                               class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Etiket</label>
+                        <input type="text" id="fresh-tag" value="freshness" onchange="update()"
+                               class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Oran -->
+            <div id="p-ratio" class="hidden space-y-3">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Kolon</label>
+                    <select id="col-ratio" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option>customer_id</option><option>amount</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Maks. oran (%)</label>
+                        <input type="number" id="ratio-max" value="5" min="0" max="100" onchange="update()"
+                               class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Etiket</label>
+                        <input type="text" id="ratio-tag" value="quality" onchange="update()"
+                               class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+            <!-- Negatif değer -->
+            <div id="p-negative" class="hidden space-y-3">
+                <div><label class="block text-xs text-gray-500 mb-1">Kolon</label>
+                <select id="col-negative" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option>amount</option><option>balance</option><option>price</option>
+                </select></div>
+                <div><label class="block text-xs text-gray-500 mb-1">Etiket</label>
+                <input type="text" id="negative-tag" value="finance" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+            </div>
+
+            <!-- Standart sapma -->
+            <div id="p-stddev" class="hidden space-y-3">
+                <div><label class="block text-xs text-gray-500 mb-1">Kolon</label>
+                <select id="col-stddev" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option>amount</option><option>price</option>
+                </select></div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-xs text-gray-500 mb-1">Maks. std sapma</label>
+                    <input type="number" id="stddev-max" value="3" min="1" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                    <div><label class="block text-xs text-gray-500 mb-1">Etiket</label>
+                    <input type="text" id="stddev-tag" value="quality" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                </div>
+            </div>
+
+            <!-- Tutar tutarsızlığı -->
+            <div id="p-sum_match" class="hidden space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-xs text-gray-500 mb-1">Toplam kolon</label>
+                    <input type="text" id="sum-col" value="total_amount" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                    <div><label class="block text-xs text-gray-500 mb-1">Detay tablosu</label>
+                    <input type="text" id="sum-detail-tbl" value="order_items" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-xs text-gray-500 mb-1">Detay kolon</label>
+                    <input type="text" id="sum-detail-col" value="line_amount" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                    <div><label class="block text-xs text-gray-500 mb-1">Eşleşme kolonu</label>
+                    <input type="text" id="sum-key" value="order_id" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                </div>
+                <div><label class="block text-xs text-gray-500 mb-1">Etiket</label>
+                <input type="text" id="sum-tag" value="finance" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+            </div>
+
+            <!-- Regex / Format -->
+            <div id="p-regex" class="hidden space-y-3">
+                <div><label class="block text-xs text-gray-500 mb-1">Kolon</label>
+                <select id="col-regex" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option>phone</option><option>code</option><option>iban</option>
+                </select></div>
+                <div><label class="block text-xs text-gray-500 mb-1">Regex deseni</label>
+                <input type="text" id="regex-pattern" value="^[0-9]{10,11}$" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                <div><label class="block text-xs text-gray-500 mb-1">Etiket</label>
+                <input type="text" id="regex-tag" value="quality" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+            </div>
+
+            <!-- E-posta -->
+            <div id="p-email" class="hidden space-y-3">
+                <div><label class="block text-xs text-gray-500 mb-1">Kolon</label>
+                <select id="col-email" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option>email</option><option>user_email</option><option>contact_email</option>
+                </select></div>
+                <div><label class="block text-xs text-gray-500 mb-1">Etiket</label>
+                <input type="text" id="email-tag" value="quality" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+            </div>
+
+            <!-- Telefon -->
+            <div id="p-phone" class="hidden space-y-3">
+                <div><label class="block text-xs text-gray-500 mb-1">Kolon</label>
+                <select id="col-phone" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option>phone</option><option>mobile</option><option>tel</option>
+                </select></div>
+                <div><label class="block text-xs text-gray-500 mb-1">Etiket</label>
+                <input type="text" id="phone-tag" value="quality" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+            </div>
+
+            <!-- Boş string -->
+            <div id="p-empty_string" class="hidden space-y-3">
+                <div><label class="block text-xs text-gray-500 mb-1">Kolon</label>
+                <select id="col-empty" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option>name</option><option>description</option><option>address</option>
+                </select></div>
+                <div><label class="block text-xs text-gray-500 mb-1">Etiket</label>
+                <input type="text" id="empty-tag" value="quality" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+            </div>
+
+            <!-- Değer kümesi -->
+            <div id="p-value_set" class="hidden space-y-3">
+                <div><label class="block text-xs text-gray-500 mb-1">Kolon</label>
+                <select id="col-vset" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option>status</option><option>kdv_oran</option><option>currency</option>
+                </select></div>
+                <div><label class="block text-xs text-gray-500 mb-1">İzin verilen değerler (virgülle ayır)</label>
+                <input type="text" id="vset-values" value="0,1,8,10,18,20" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                <div><label class="block text-xs text-gray-500 mb-1">Etiket</label>
+                <input type="text" id="vset-tag" value="quality" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+            </div>
+
+            <!-- Tarih sırası -->
+            <div id="p-date_order" class="hidden space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-xs text-gray-500 mb-1">Başlangıç tarihi</label>
+                    <input type="text" id="date-start" value="start_date" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                    <div><label class="block text-xs text-gray-500 mb-1">Bitiş tarihi</label>
+                    <input type="text" id="date-end" value="end_date" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                </div>
+                <div><label class="block text-xs text-gray-500 mb-1">Etiket</label>
+                <input type="text" id="date-order-tag" value="quality" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+            </div>
+
+            <!-- Tarih aralığı -->
+            <div id="p-date_range" class="hidden space-y-3">
+                <div><label class="block text-xs text-gray-500 mb-1">Tarih kolonu</label>
+                <select id="col-drange" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option>created_at</option><option>order_date</option><option>birth_date</option>
+                </select></div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-xs text-gray-500 mb-1">Min yıl</label>
+                    <input type="number" id="drange-min" value="2000" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                    <div><label class="block text-xs text-gray-500 mb-1">Max yıl</label>
+                    <input type="number" id="drange-max" value="2030" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                </div>
+                <div><label class="block text-xs text-gray-500 mb-1">Etiket</label>
+                <input type="text" id="drange-tag" value="quality" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+            </div>
+
+            <!-- Tarih formatı -->
+            <div id="p-date_format" class="hidden space-y-3">
+                <div><label class="block text-xs text-gray-500 mb-1">Kolon</label>
+                <select id="col-dfmt" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option>created_at</option><option>birth_date</option><option>order_date</option>
+                </select></div>
+                <div><label class="block text-xs text-gray-500 mb-1">Beklenen format</label>
+                <select id="dfmt-format" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="%Y-%m-%d">YYYY-MM-DD</option>
+                    <option value="%d/%m/%Y">DD/MM/YYYY</option>
+                    <option value="%Y-%m-%d %H:%i:%s">YYYY-MM-DD HH:MM:SS</option>
+                </select></div>
+                <div><label class="block text-xs text-gray-500 mb-1">Etiket</label>
+                <input type="text" id="dfmt-tag" value="quality" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+            </div>
+
+            <!-- Referans bütünlüğü -->
+            <div id="p-reference" class="hidden space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-xs text-gray-500 mb-1">FK kolonu</label>
+                    <input type="text" id="ref-fk" value="customer_id" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                    <div><label class="block text-xs text-gray-500 mb-1">Referans tablo</label>
+                    <input type="text" id="ref-tbl" value="customers" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                </div>
+                <div><label class="block text-xs text-gray-500 mb-1">Referans kolonu</label>
+                <input type="text" id="ref-col" value="id" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                <div><label class="block text-xs text-gray-500 mb-1">Etiket</label>
+                <input type="text" id="ref-tag" value="critical" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+            </div>
+
+            <!-- Çapraz tablo -->
+            <div id="p-cross_table" class="hidden space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-xs text-gray-500 mb-1">Tablo A</label>
+                    <input type="text" id="cross-tbl-a" value="source" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                    <div><label class="block text-xs text-gray-500 mb-1">Tablo B</label>
+                    <input type="text" id="cross-tbl-b" value="target" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                </div>
+                <div><label class="block text-xs text-gray-500 mb-1">Eşleşme kolonu</label>
+                <input type="text" id="cross-key" value="id" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                <div><label class="block text-xs text-gray-500 mb-1">Etiket</label>
+                <input type="text" id="cross-tag" value="critical" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+            </div>
+
+            <!-- Özel SQL -->
+            <div id="p-custom" class="hidden space-y-3">
+                <div><label class="block text-xs text-gray-500 mb-1">Kural adı</label>
+                <input type="text" id="custom-name" value="Özel kontrol" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                <div><label class="block text-xs text-gray-500 mb-1">SQL</label>
+                <textarea id="custom-sql" rows="4" onchange="update()" placeholder="SELECT COUNT(*) FROM source WHERE ..."
+                          class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea></div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-xs text-gray-500 mb-1">Assert tipi</label>
+                    <select id="custom-assert" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option>equals</option><option>greater_than</option><option>less_than</option><option>between</option>
+                    </select></div>
+                    <div><label class="block text-xs text-gray-500 mb-1">Değer</label>
+                    <input type="text" id="custom-val" value="0" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                </div>
+                <div><label class="block text-xs text-gray-500 mb-1">Etiket</label>
+                <input type="text" id="custom-tag" value="custom" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+            </div>
+
+        <!-- Kaydet butonu -->
+        <button onclick="saveRule()"
+                class="w-full py-2.5 bg-blue-600 text-white rounded-xl text-sm hover:bg-blue-700 transition font-medium">
+            Kuralı kaydet
+        </button>
+    </div>
+
+    <!-- Sağ: Canlı önizleme -->
+    <div class="space-y-4">
+
+        <!-- SQL önizleme -->
+        <div class="bg-white rounded-xl border border-gray-200 p-5">
+            <div class="flex items-center justify-between mb-3">
+                <p class="text-sm font-medium text-gray-900">Çalışacak SQL</p>
+                <button onclick="copyText('sql-preview')"
+                        class="text-xs text-gray-400 border border-gray-200 rounded px-2 py-1 hover:bg-gray-50">
+                    kopyala
+                </button>
+            </div>
+            <pre id="sql-preview"
+                 class="bg-gray-900 text-green-400 rounded-lg p-4 text-xs font-mono overflow-x-auto leading-relaxed"></pre>
+            <p class="text-xs text-gray-400 mt-2">
+                Bu SQL veri kaynağına karşı çalıştırılır, tek bir sayı döndürmesi beklenir.
+            </p>
+        </div>
+
+        <!-- TOML önizleme -->
+        <div class="bg-white rounded-xl border border-gray-200 p-5">
+            <div class="flex items-center justify-between mb-3">
+                <p class="text-sm font-medium text-gray-900">TOML çıktısı</p>
+                <button onclick="copyText('toml-preview')"
+                        class="text-xs text-gray-400 border border-gray-200 rounded px-2 py-1 hover:bg-gray-50">
+                    kopyala
+                </button>
+            </div>
+            <pre id="toml-preview"
+                 class="bg-gray-50 text-gray-700 rounded-lg p-4 text-xs font-mono overflow-x-auto leading-relaxed border border-gray-100"></pre>
+            <p class="text-xs text-gray-400 mt-2">
+                Bu bloğu <code class="bg-gray-100 px-1 rounded">checks.toml</code> dosyana ekleyebilirsin.
+            </p>
+        </div>
+
+        <!-- Öğrenme notu -->
+        <div class="bg-blue-50 rounded-xl border border-blue-100 p-4">
+            <p class="text-xs font-medium text-blue-700 mb-1">Nasıl öğrenilir?</p>
+            <p class="text-xs text-blue-600 leading-relaxed">
+                Farklı kontrol tiplerini seçerek SQL ve TOML'un nasıl değiştiğini gözlemle.
+                Zamanla TOML'u kendin yazmaya, sonra SQL'i direkt düzenlemeye başlayabilirsin.
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentType = 'null';
+
+function getVal(id){ return document.getElementById(id)?.value || ''; }
+
+function buildSQL(){
+    const tbl = getVal('tbl') || 'source';
+    switch(currentType){
+        case 'null':{
+            const col=getVal('col-null'), t=getVal('null-thresh');
+            return t=='0'
+                ? `SELECT COUNT(*)\nFROM ${tbl}\nWHERE ${col} IS NULL`
+                : `SELECT COUNT(*) * 100.0 / COUNT(1)\nFROM ${tbl}\nWHERE ${col} IS NULL`;
+        }
+        case 'rowcount':
+            return `SELECT COUNT(*)\nFROM ${getVal('tbl')||'source'}`;
+        case 'range':{
+            const col=getVal('col-range');
+            return `SELECT AVG(${col})\nFROM ${tbl}`;
+        }
+        case 'duplicate':{
+            const col=getVal('col-dup');
+            return `SELECT COUNT(*) - COUNT(DISTINCT ${col})\nFROM ${tbl}`;
+        }
+        case 'freshness':{
+            const col=getVal('col-fresh');
+            return `SELECT TIMESTAMPDIFF(HOUR, MAX(${col}), NOW())\nFROM ${tbl}`;
+        }
+        case 'ratio':{
+            const col=getVal('col-ratio');
+            return `SELECT COUNT(*) * 100.0 / COUNT(1)\nFROM ${tbl}\nWHERE ${col} IS NULL`;
+        }
+        case 'negative':{ const col=getVal('col-negative'); return `SELECT COUNT(*)
+FROM ${tbl}
+WHERE ${col} < 0`; }
+        case 'stddev':{ const col=getVal('col-stddev'); return `SELECT STDDEV(${col})
+FROM ${tbl}`; }
+        case 'sum_match':{ const col=getVal('sum-col'),dt=getVal('sum-detail-tbl'),dc=getVal('sum-detail-col'),k=getVal('sum-key'); return `SELECT COUNT(*) FROM ${tbl} h LEFT JOIN ${dt} d ON h.${k}=d.${k} WHERE ABS(h.${col}-COALESCE(d.${dc},0))>0.01`; }
+        case 'regex':{ const col=getVal('col-regex'),pat=getVal('regex-pattern'); return `SELECT COUNT(*)
+FROM ${tbl}
+WHERE ${col} NOT REGEXP '${pat}'`; }
+        case 'email':{ const col=getVal('col-email'); return `SELECT COUNT(*)
+FROM ${tbl}
+WHERE ${col} NOT REGEXP '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$'`; }
+        case 'phone':{ const col=getVal('col-phone'); return `SELECT COUNT(*)
+FROM ${tbl}
+WHERE ${col} NOT REGEXP '^[0-9+\\-\\s]{7,15}$'`; }
+        case 'empty_string':{ const col=getVal('col-empty'); return `SELECT COUNT(*)
+FROM ${tbl}
+WHERE TRIM(${col})='' OR ${col} IS NULL`; }
+        case 'value_set':{ const col=getVal('col-vset'),vals=getVal('vset-values').split(',').map(v=>`'${v.trim()}'`).join(','); return `SELECT COUNT(*)
+FROM ${tbl}
+WHERE ${col} NOT IN (${vals})`; }
+        case 'date_order':{ const s=getVal('date-start'),e=getVal('date-end'); return `SELECT COUNT(*)
+FROM ${tbl}
+WHERE ${s} > ${e}`; }
+        case 'date_range':{ const col=getVal('col-drange'),mn=getVal('drange-min'),mx=getVal('drange-max'); return `SELECT COUNT(*)
+FROM ${tbl}
+WHERE YEAR(${col})<${mn} OR YEAR(${col})>${mx}`; }
+        case 'date_format':{ const col=getVal('col-dfmt'),fmt=getVal('dfmt-format'); return `SELECT COUNT(*)
+FROM ${tbl}
+WHERE STR_TO_DATE(${col},'${fmt}') IS NULL AND ${col} IS NOT NULL`; }
+        case 'reference':{ const fk=getVal('ref-fk'),rt=getVal('ref-tbl'),rc=getVal('ref-col'); return `SELECT COUNT(*)
+FROM ${tbl} a LEFT JOIN ${rt} b ON a.${fk}=b.${rc}
+WHERE a.${fk} IS NOT NULL AND b.${rc} IS NULL`; }
+        case 'cross_table':{ const ta=getVal('cross-tbl-a'),tb=getVal('cross-tbl-b'),k=getVal('cross-key'); return `SELECT COUNT(*)
+FROM ${ta} a LEFT JOIN ${tb} b ON a.${k}=b.${k}
+WHERE b.${k} IS NULL`; }
+        case 'custom':{ return getVal('custom-sql')||'-- SQL yazın'; }
+    }
+}
+
+function buildTOML(){
+    const sql=buildSQL().replace(/\n/g,' '), tbl=getVal('tbl')||'source';
+    const q=`"${sql}"`;
+    switch(currentType){
+        case 'null':{ const col=getVal('col-null'),t=getVal('null-thresh'),tag=getVal('null-tag'); const a=t=='0'?'equals':'less_than',v=t=='0'?'0':t; return `[[checks]]\nname   = "${col} boş olmamalı"\nquery  = ${q}\nassert = "${a}"\nvalue  = ${v}\ntags   = ["${tag}"]`; }
+        case 'rowcount':{ const mn=getVal('rc-min'),tag=getVal('rc-tag'); return `[[checks]]\nname   = "En az ${mn} satır olmalı"\nquery  = ${q}\nassert = "greater_than"\nvalue  = ${mn}\ntags   = ["${tag}"]`; }
+        case 'range':{ const col=getVal('col-range'),mn=getVal('range-min'),mx=getVal('range-max'),tag=getVal('range-tag'); return `[[checks]]\nname   = "${col} aralıkta olmalı"\nquery  = ${q}\nassert = "between"\nvalue  = [${mn},${mx}]\ntags   = ["${tag}"]`; }
+        case 'duplicate':{ const col=getVal('col-dup'),tag=getVal('dup-tag'); return `[[checks]]\nname   = "${col} duplicate olmamalı"\nquery  = ${q}\nassert = "equals"\nvalue  = 0\ntags   = ["${tag}"]`; }
+        case 'freshness':{ const col=getVal('col-fresh'),h=getVal('fresh-hours'),tag=getVal('fresh-tag'); return `[[checks]]\nname   = "Tablo ${h}h taze olmalı"\nquery  = ${q}\nassert = "less_than"\nvalue  = ${h}\ntags   = ["${tag}"]`; }
+        case 'ratio':{ const col=getVal('col-ratio'),mx=getVal('ratio-max'),tag=getVal('ratio-tag'); return `[[checks]]\nname   = "Null oranı < %${mx}"\nquery  = ${q}\nassert = "less_than"\nvalue  = ${mx}\ntags   = ["${tag}"]`; }
+        case 'negative':{ const col=getVal('col-negative'),tag=getVal('negative-tag'); return `[[checks]]\nname   = "${col} negatif olmamalı"\nquery  = ${q}\nassert = "equals"\nvalue  = 0\ntags   = ["${tag}"]`; }
+        case 'stddev':{ const col=getVal('col-stddev'),mx=getVal('stddev-max'),tag=getVal('stddev-tag'); return `[[checks]]\nname   = "${col} std sapma < ${mx}"\nquery  = ${q}\nassert = "less_than"\nvalue  = ${mx}\ntags   = ["${tag}"]`; }
+        case 'sum_match':{ const col=getVal('sum-col'),tag=getVal('sum-tag'); return `[[checks]]\nname   = "${col} tutar tutarsızlığı yok"\nquery  = ${q}\nassert = "equals"\nvalue  = 0\ntags   = ["${tag}"]`; }
+        case 'regex':{ const col=getVal('col-regex'),tag=getVal('regex-tag'); return `[[checks]]\nname   = "${col} format geçerli"\nquery  = ${q}\nassert = "equals"\nvalue  = 0\ntags   = ["${tag}"]`; }
+        case 'email':{ const col=getVal('col-email'),tag=getVal('email-tag'); return `[[checks]]\nname   = "${col} geçerli e-posta"\nquery  = ${q}\nassert = "equals"\nvalue  = 0\ntags   = ["${tag}"]`; }
+        case 'phone':{ const col=getVal('col-phone'),tag=getVal('phone-tag'); return `[[checks]]\nname   = "${col} geçerli telefon"\nquery  = ${q}\nassert = "equals"\nvalue  = 0\ntags   = ["${tag}"]`; }
+        case 'empty_string':{ const col=getVal('col-empty'),tag=getVal('empty-tag'); return `[[checks]]\nname   = "${col} boş string yok"\nquery  = ${q}\nassert = "equals"\nvalue  = 0\ntags   = ["${tag}"]`; }
+        case 'value_set':{ const col=getVal('col-vset'),tag=getVal('vset-tag'); return `[[checks]]\nname   = "${col} geçerli değer kümesinde"\nquery  = ${q}\nassert = "equals"\nvalue  = 0\ntags   = ["${tag}"]`; }
+        case 'date_order':{ const s=getVal('date-start'),e=getVal('date-end'),tag=getVal('date-order-tag'); return `[[checks]]\nname   = "${s} < ${e} olmalı"\nquery  = ${q}\nassert = "equals"\nvalue  = 0\ntags   = ["${tag}"]`; }
+        case 'date_range':{ const col=getVal('col-drange'),mn=getVal('drange-min'),mx=getVal('drange-max'),tag=getVal('drange-tag'); return `[[checks]]\nname   = "${col} ${mn}-${mx} aralığında"\nquery  = ${q}\nassert = "equals"\nvalue  = 0\ntags   = ["${tag}"]`; }
+        case 'date_format':{ const col=getVal('col-dfmt'),tag=getVal('dfmt-tag'); return `[[checks]]\nname   = "${col} tarih formatı geçerli"\nquery  = ${q}\nassert = "equals"\nvalue  = 0\ntags   = ["${tag}"]`; }
+        case 'reference':{ const fk=getVal('ref-fk'),rt=getVal('ref-tbl'),tag=getVal('ref-tag'); return `[[checks]]\nname   = "${fk} referans bütünlüğü"\nquery  = ${q}\nassert = "equals"\nvalue  = 0\ntags   = ["${tag}"]`; }
+        case 'cross_table':{ const ta=getVal('cross-tbl-a'),tb=getVal('cross-tbl-b'),tag=getVal('cross-tag'); return `[[checks]]\nname   = "${ta} vs ${tb} eşleşmeli"\nquery  = ${q}\nassert = "equals"\nvalue  = 0\ntags   = ["${tag}"]`; }
+        case 'custom':{ const name=getVal('custom-name'),a=getVal('custom-assert'),v=getVal('custom-val'),tag=getVal('custom-tag'); return `[[checks]]\nname   = "${name}"\nquery  = ${q}\nassert = "${a}"\nvalue  = ${v}\ntags   = ["${tag}"]`; }
+    }
+}
+
+
+function filterChips(){
+    const q = document.getElementById('chip-search').value.toLowerCase();
+    document.querySelectorAll('.chip, [data-label]').forEach(btn=>{
+        const label = (btn.dataset.label||btn.textContent).toLowerCase();
+        btn.style.display = label.includes(q) ? '' : 'none';
+    });
+}
+
+function update(){
+    document.getElementById('sql-preview').textContent = buildSQL();
+    document.getElementById('toml-preview').textContent = buildTOML();
+}
+
+function selectChip(el, type){
+    document.querySelectorAll('.chip').forEach(c=>{
+        c.classList.remove('active','bg-blue-50','border-blue-200','text-blue-700');
+        c.classList.add('border-gray-200','text-gray-600');
+    });
+    el.classList.add('active','bg-blue-50','border-blue-200','text-blue-700');
+    el.classList.remove('border-gray-200','text-gray-600');
+    currentType = type;
+    ['null','rowcount','range','duplicate','freshness','ratio','negative','stddev','sum_match','regex','email','phone','empty_string','value_set','date_order','date_range','date_format','reference','cross_table','custom'].forEach(t=>{
+        const el = document.getElementById('p-'+t);
+        if(t===type){ el.classList.remove('hidden'); }
+        else { el.classList.add('hidden'); }
+    });
+    update();
+}
+
+function copyText(id){
+    navigator.clipboard.writeText(document.getElementById(id).textContent);
+}
+
+async function loadColumns(){
+    const sourceId = document.getElementById('src').value;
+    if (!sourceId) return;
+
+    try {
+        const res  = await fetch(`/api/columns/${sourceId}`);
+        const data = await res.json();
+        const cols = data.columns || [];
+
+        if (cols.length > 0) {
+            ['col-null','col-range','col-dup','col-ratio','col-fresh'].forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                const current = el.value;
+                el.innerHTML = cols.map(c =>
+                    `<option value="${c}" ${c===current?'selected':''}>${c}</option>`
+                ).join('');
+            });
+
+            const row  = document.getElementById('columns-row');
+            const list = document.getElementById('columns-list');
+            if (row && list) {
+                list.innerHTML = cols.map(c =>
+                    `<button onclick="selectColumn('${c}')" class="px-3 py-1 border border-gray-200 rounded-full text-xs text-gray-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600 transition">${c}</button>`
+                ).join('');
+                row.classList.remove('hidden');
+            }
+        }
+    } catch(e) {
+        console.warn('Kolon çekme hatası:', e);
+    }
+    update();
+}
+
+function selectColumn(col) {
+    const mapId = {
+        'null': 'col-null', 'range': 'col-range',
+        'duplicate': 'col-dup', 'ratio': 'col-ratio', 'freshness': 'col-fresh'
+    };
+    const elId = mapId[currentType];
+    if (elId) {
+        const el = document.getElementById(elId);
+        if (el) { el.value = col; update(); }
+    }
+}
+
+async function runProfile() {
+    const sourceId = document.getElementById('src').value;
+    const btn = document.getElementById('profile-btn');
+    btn.textContent = 'Taranıyor...';
+    btn.disabled = true;
+
+    try {
+        const res  = await fetch(`/api/profile/${sourceId}`, { method: 'POST' });
+        const data = await res.json();
+        if (data.columns) showProfileResults(data.columns, data.suggestions || []);
+    } catch(e) {
+        alert('Profil hatası: ' + e.message);
+    } finally {
+        btn.textContent = 'Detaylı Profil çalıştır — istatistik + kural önerisi';
+        btn.disabled = false;
+    }
+}
+
+function showProfileResults(columns, suggestions) {
+    const container = document.getElementById('profile-results');
+    if (!container) return;
+
+    const cols = columns.map(c => `
+        <div class="bg-gray-50 border border-gray-100 rounded-lg p-3 mb-2">
+            <div class="flex justify-between items-center mb-1">
+                <span class="text-sm font-medium text-gray-900">${c.column_name||c.column}</span>
+                <span class="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">${c.col_type||c.type}</span>
+            </div>
+            <div class="flex gap-3 flex-wrap text-xs text-gray-500">
+                <span>Satır: <b>${c.row_count}</b></span>
+                <span>Null: <b>${c.null_pct}%</b></span>
+                <span>Benzersiz: <b>${c.distinct_count}</b></span>
+                ${c.min_val||c.min ? `<span>Min: <b>${c.min_val||c.min}</b></span>` : ''}
+                ${c.max_val||c.max ? `<span>Max: <b>${c.max_val||c.max}</b></span>` : ''}
+                ${c.avg_val ? `<span>Ort: <b>${c.avg_val}</b></span>` : ''}
+            </div>
+        </div>`).join('');
+
+    const suggs = suggestions.map((s, idx) => `
+        <div id="sugg-${idx}" class="bg-green-50 border border-green-100 rounded-lg p-3 mb-2 hover:border-green-300 transition">
+            <div class="flex justify-between items-center gap-2">
+                <span class="text-sm font-medium text-green-800 cursor-pointer flex-1"
+                      onclick="applySuggestion('${s.type}','${s.column}','${s.assert_type}','${s.assert_value}',${s.library_pattern_id ?? 'null'})">
+                      ${s.title}
+                </span>
+                <span class="text-xs text-green-600">${s.confidence==='high'?'★ Yüksek':'◐ Orta'}</span>
+                <button type="button" title="Bu öneri uygun değil"
+                        class="text-xs text-gray-400 hover:text-red-600 px-1"
+                        onclick="rejectSuggestion(event, ${idx}, '${s.column}', '${s.type}', ${s.library_pattern_id ?? 'null'})">✕</button>
+            </div>
+            <p class="text-xs text-green-700 mt-1 cursor-pointer"
+               onclick="applySuggestion('${s.type}','${s.column}','${s.assert_type}','${s.assert_value}',${s.library_pattern_id ?? 'null'})">
+               ${s.reason} — <u>Uygula</u>
+            </p>
+        </div>`).join('');
+
+    container.innerHTML = `
+        <p class="text-sm font-medium text-gray-900 mb-3">Kolon istatistikleri</p>
+        ${cols}
+        ${suggs ? `<p class="text-sm font-medium text-gray-900 mt-4 mb-3">Önerilen kurallar</p>${suggs}` : ''}
+    `;
+    container.classList.remove('hidden');
+}
+
+let currentLibraryPatternId = null;
+let currentSuggestionColumn = '';
+
+function applySuggestion(type, column, assertType, assertValue, libraryPatternId) {
+    const btn = document.querySelector(`[onclick="selectChip(this,'${type}')"]`);
+    if (btn) selectChip(btn, type);
+    const mapId = {'null':'col-null','range':'col-range','duplicate':'col-dup','ratio':'col-ratio','freshness':'col-fresh'};
+    const el = document.getElementById(mapId[type]);
+    if (el) { el.value = column; update(); }
+    currentLibraryPatternId = libraryPatternId ?? null;
+    currentSuggestionColumn = column;
+}
+
+async function rejectSuggestion(event, idx, column, suggestionType, libraryPatternId) {
+    event.stopPropagation();  // karta tiklamayi tetiklemesin
+    const body = new URLSearchParams({
+        column:             column,
+        suggestion_type:    suggestionType,
+        library_pattern_id: libraryPatternId ?? '',
+    });
+    try {
+        await fetch('/api/suggestions/reject', { method: 'POST', body });
+    } catch (e) { /* sessizce gec - UI'yi engellemesin */ }
+
+    const card = document.getElementById(`sugg-${idx}`);
+    if (card) {
+        card.style.opacity = '0.3';
+        card.style.pointerEvents = 'none';
+        card.querySelector('span.cursor-pointer, p').insertAdjacentHTML(
+            'afterend', '<p class="text-xs text-gray-400 mt-1">Reddedildi</p>'
+        );
+    }
+}
+
+async function saveRule(){
+    const sourceId = document.getElementById('src').value;
+    const sql = buildSQL().replace(/\n/g,' ');
+    const toml = buildTOML();
+
+    const params = {
+        'null':      ()=>({ assert_type:'equals', assert_value: getVal('null-thresh')=='0'?'0':getVal('null-thresh'), name:`${getVal('col-null')} boş olmamalı`, tags: getVal('null-tag'), column: getVal('col-null') }),
+        'rowcount':  ()=>({ assert_type:'greater_than', assert_value: getVal('rc-min'), name:`En az ${getVal('rc-min')} satır olmalı`, tags: getVal('rc-tag'), column: '' }),
+        'range':     ()=>({ assert_type:'between', assert_value:`[${getVal('range-min')}, ${getVal('range-max')}]`, name:`${getVal('col-range')} aralıkta olmalı`, tags: getVal('range-tag'), column: getVal('col-range') }),
+        'duplicate': ()=>({ assert_type:'equals', assert_value:'0', name:`${getVal('col-dup')} duplicate olmamalı`, tags: getVal('dup-tag'), column: getVal('col-dup') }),
+        'freshness': ()=>({ assert_type:'less_than', assert_value: getVal('fresh-hours'), name:`Tablo ${getVal('fresh-hours')}h'den taze olmalı`, tags: getVal('fresh-tag'), column: '' }),
+        'ratio':     ()=>({ assert_type:'less_than', assert_value: getVal('ratio-max'), name:`Null oranı < %${getVal('ratio-max')}`, tags: getVal('ratio-tag'), column: getVal('col-ratio') }),
+    };
+
+    const p = params[currentType]();
+    const body = new URLSearchParams({
+        source_id:    sourceId,
+        name:         p.name,
+        query:        sql,
+        assert_type:  p.assert_type,
+        assert_value: p.assert_value,
+        tags:         p.tags,
+        column_name:  p.column || currentSuggestionColumn || '',
+        library_pattern_id: currentLibraryPatternId ?? '',
+    });
+
+    const res = await fetch('/checks/new', { method:'POST', body });
+    if(res.ok || res.redirected){
+        window.location.href = '/checks?msg=Kural+eklendi';
+    }
+}
+
+update();
+</script>
+{% endblock %}

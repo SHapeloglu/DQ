@@ -1,0 +1,34 @@
+# checks.toml — DataSoda örnek config
+# Çalıştır: python -m dq checks.toml
+
+[source]
+type = "csv"
+path = "orders.csv"
+
+[[checks]]
+name   = "Tabloda en az 1 satır var"
+query  = "SELECT COUNT(*) FROM source"
+assert = "greater_than"
+value  = 0
+tags   = ["critical"]
+
+[[checks]]
+name   = "Toplam sipariş tutarı pozitif"
+query  = "SELECT SUM(amount) FROM source"
+assert = "greater_than"
+value  = 0
+tags   = ["critical", "finance"]
+
+[[checks]]
+name   = "Null müşteri ID oranı < %5"
+query  = "SELECT COUNT(*) * 100.0 / COUNT(1) FROM source WHERE customer_id IS NULL"
+assert = "less_than"
+value  = 5.0
+tags   = ["quality"]
+
+[[checks]]
+name   = "Ortalama sipariş tutarı makul aralıkta"
+query  = "SELECT AVG(amount) FROM source"
+assert = "between"
+value  = [1.0, 10000.0]
+tags   = ["quality"]

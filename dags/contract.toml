@@ -1,0 +1,41 @@
+# contract.toml — DataSoda veri kontratı örneği
+# Çalıştır: Python API veya validator.validate(load_contract("contract.toml"))
+
+[contract]
+name    = "orders_v1"
+owner   = "data-team"
+version = "1.0"
+
+# Şema kuralları
+[[contract.schema]]
+column   = "id"
+type     = "integer"
+nullable = false
+
+[[contract.schema]]
+column   = "customer_id"
+type     = "integer"
+nullable = true
+
+[[contract.schema]]
+column   = "amount"
+type     = "float"
+nullable = false
+
+# Kalite check'leri (1. katman syntax'ı)
+[[contract.checks]]
+name   = "Tabloda satır var"
+query  = "SELECT COUNT(*) FROM source"
+assert = "greater_than"
+value  = 0
+
+[[contract.checks]]
+name   = "Toplam tutar pozitif"
+query  = "SELECT SUM(amount) FROM source"
+assert = "greater_than"
+value  = 0
+
+# Tazelik kuralı
+[contract.freshness]
+column    = "created_at"
+max_hours = 24
