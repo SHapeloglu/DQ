@@ -2,9 +2,22 @@
 Connector katmanı — her veri kaynağı bu arayüzü uygular.
 Yeni bir kaynak eklemek için sadece BaseConnector'ı kalıt al.
 """
-
 from abc import ABC, abstractmethod
-from typing import Any
+
+
+
+# ── Custom Exceptions ───────────────────────────────────────────────────────
+
+class DQConnectionError(Exception):
+    """Raised when connector fails to connect."""
+    pass
+
+
+class DQCheckError(Exception):
+    """Raised when check execution fails."""
+    pass
+
+from typing import Dict, List, Any, Optional, Union
 
 
 class BaseConnector(ABC):
@@ -251,6 +264,191 @@ class OracleConnector(BaseConnector):
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+class MongoConnector(BaseConnector):
+    """MongoDB connector for DQ checks."""
+
+    def __init__(self, host: str, port: int = 27017, database: str = "test",
+                 username: Optional[str] = None, password: Optional[str] = None,
+                 **kwargs):
+        """
+        Initialize MongoDB connector.
+
+        Args:
+            host: MongoDB host
+            port: MongoDB port (default 27017)
+            database: Database name
+            username: Optional authentication username
+            password: Optional authentication password
+        """
+        self.host = host
+        self.port = port
+        self.database = database
+        self.username = username
+        self.password = password
+        self.client = None
+        self.db = None
+
+    def connect(self) -> None:
+        """Establish MongoDB connection."""
+        try:
+            from pymongo import MongoClient
+            
+            if self.username and self.password:
+                uri = f"mongodb://{self.username}:{self.password}@{self.host}:{self.port}/{self.database}"
+            else:
+                uri = f"mongodb://{self.host}:{self.port}/{self.database}"
+            
+            self.client = MongoClient(uri, serverSelectionTimeoutMS=5000)
+            self.db = self.client[self.database]
+            # Test bağlantı
+            self.client.admin.command('ping')
+        except ImportError:
+            raise DQConnectionError("pymongo not installed. Run: pip install pymongo")
+        except Exception as e:
+            raise DQConnectionError(f"MongoDB connection failed: {e}")
+
+    def close(self) -> None:
+        """Close MongoDB connection."""
+        if self.client:
+            self.client.close()
+            self.client = None
+            self.db = None
+
+    def execute(self, query):
+        """Execute MongoDB query (aggregation pipeline or find)."""
+        if not self.db:
+            raise DQCheckError("MongoDB not connected. Call connect() first.")
+        
+        if isinstance(query, str):
+            raise DQCheckError("MongoDB requires dict query, not string.")
+        
+        if not isinstance(query, dict):
+            raise DQCheckError(f"Query must be dict, got {type(query)}")
+        
+        collection_name = query.get("collection")
+        if not collection_name:
+            raise DQCheckError("Query dict must contain 'collection' key")
+        
+        collection = self.db.get(collection_name, {}) if isinstance(self.db, dict) else self.db[collection_name]
+        
+        # Pipeline-based (aggregation)
+        if "pipeline" in query:
+            pipeline = query["pipeline"]
+            try:
+                result = list(collection.aggregate(pipeline))
+                return result
+            except Exception as e:
+                raise DQCheckError(f"MongoDB aggregation failed: {e}")
+        
+        # Find-based (simple filter)
+        elif "filter" in query:
+            filter_dict = query["filter"]
+            try:
+                result = list(collection.find(filter_dict))
+                # ObjectId objects cannot be JSON serialized; convert to string
+                for doc in result:
+                    if "_id" in doc and hasattr(doc["_id"], "__str__"):
+                        doc["_id"] = str(doc["_id"])
+                return result
+            except Exception as e:
+                raise DQCheckError(f"MongoDB find failed: {e}")
+        
+        else:
+            raise DQCheckError("Query dict must contain 'pipeline' or 'filter' key")
+
+    def test_connection(self) -> bool:
+        """Test MongoDB connection."""
+        try:
+            self.connect()
+            self.close()
+            return True
+        except DQConnectionError:
+            return False
+
+        try:
+            from pymongo import MongoClient
+            
+            if self.username and self.password:
+                uri = f"mongodb://{self.username}:{self.password}@{self.host}:{self.port}/{self.database}"
+            else:
+                uri = f"mongodb://{self.host}:{self.port}/{self.database}"
+            
+            self.client = MongoClient(uri, serverSelectionTimeoutMS=5000)
+            self.db = self.client[self.database]
+            # Test bağlantı
+            self.client.admin.command('ping')
+        except ImportError:
+            raise DQConnectionError("pymongo not installed. Run: pip install pymongo")
+        except Exception as e:
+            raise DQConnectionError(f"MongoDB connection failed: {e}")
+
+    def close(self) -> None:
+        """Close MongoDB connection."""
+        if self.client:
+            self.client.close()
+            self.client = None
+            self.db = None
+
+    def execute(self, query: Union[str, Dict[str, Any]]) -> Union[str, dict, list]:
+        """
+        Execute MongoDB query (aggregation pipeline or find).
+        
+        Args:
+            query: Dict with 'collection' + 'pipeline' or 'filter'
+                   Example: {"collection": "users", "pipeline": [...]}
+                   Or: {"collection": "users", "filter": {"status": "active"}}
+        
+        Returns:
+            Query result as dict or list
+        """
+        if not self.db:
+            raise DQCheckError("MongoDB not connected. Call connect() first.")
+        
+        if isinstance(query, str):
+            raise DQCheckError("MongoDB requires dict query, not string.")
+        
+        if not isinstance(query, dict):
+            raise DQCheckError(f"Query must be dict, got {type(query)}")
+        
+        collection_name = query.get("collection")
+        if not collection_name:
+            raise DQCheckError("Query dict must contain 'collection' key")
+        
+        collection = self.db.get(collection_name, {}) if isinstance(self.db, dict) else self.db[collection_name]
+        
+        # Pipeline-based (aggregation)
+        if "pipeline" in query:
+            pipeline = query["pipeline"]
+            try:
+                result = list(collection.aggregate(pipeline))
+                return result
+            except Exception as e:
+                raise DQCheckError(f"MongoDB aggregation failed: {e}")
+        
+        # Find-based (simple filter)
+        elif "filter" in query:
+            filter_dict = query["filter"]
+            try:
+                result = list(collection.find(filter_dict))
+                # ObjectId objects cannot be JSON serialized; convert to string
+                for doc in result:
+                    if "_id" in doc and hasattr(doc["_id"], "__str__"):
+                        doc["_id"] = str(doc["_id"])
+                return result
+            except Exception as e:
+                raise DQCheckError(f"MongoDB find failed: {e}")
+        
+        else:
+            raise DQCheckError("Query dict must contain 'pipeline' or 'filter' key")
+
+    def test_connection(self) -> bool:
+        """Test MongoDB connection."""
+        try:
+            self.connect()
+            self.close()
+            return True
+        except DQConnectionError:
+            return False
 
 # ── SqlAlchemy (evrensel connector) ──────────────────────────────────────────
 
@@ -350,6 +548,7 @@ CONNECTOR_REGISTRY: dict[str, type[BaseConnector]] = {
     "csv":        CsvConnector,
     "oracle":     OracleConnector,
     "sqlalchemy": SqlAlchemyConnector,
+    "mongo": MongoConnector,
 }
 
 

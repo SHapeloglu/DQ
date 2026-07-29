@@ -1,0 +1,20 @@
+# MongoDB veri kalitesi kontrolleri
+
+[source]
+type = "mongo"
+host = "localhost"
+port = 27017
+database = "test_db"
+table = "users"
+
+[checks]
+# Dokuman sayısı kontrolü
+doc_count = { "collection" = "users", "pipeline" = [{ "$count" = "total" }] }
+doc_count.assertion = { ">=" = 0 }
+
+# Boş dokuman kontrolü
+null_check = { "collection" = "users", "filter" = { "email" = null } }
+null_check.assertion = { "=" = 0 }
+
+[output]
+format = "json"

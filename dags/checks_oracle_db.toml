@@ -1,0 +1,23 @@
+# Oracle veri kalitesi kontrolleri
+
+[source]
+type = "oracle"
+host = "localhost"
+port = 1521
+database = "ORCL"
+service_name = "ORCL"
+user = "system"
+password = "oracle"
+table = "source"
+
+[checks]
+# Satır sayısı kontrolü
+row_count = "SELECT COUNT(*) as cnt FROM {table}"
+row_count.assertion = { ">=" = 0 }
+
+# NULL kontrolü
+null_check = "SELECT COUNT(*) as cnt FROM {table} WHERE id IS NULL"
+null_check.assertion = { "=" = 0 }
+
+[output]
+format = "json"
