@@ -94,6 +94,7 @@ def contract_json(result: ContractResult) -> dict:
 # ── Birleşik rapor ────────────────────────────────────────────────────────────
 
 def full_report(
+    metric_store=None,  # MetricStore instance — verilirse sonuçlar kaydedilir
     check_results=None,
     anomaly_results: list[AnomalyResult] | None = None,
     contract_results: list[ContractResult] | None = None,
@@ -108,6 +109,13 @@ def full_report(
         1 → en az bir sorun var
     """
     has_failure = False
+
+    # MetricStore kaydı
+    if metric_store is not None:
+        if check_results:
+            metric_store.record_results(check_results)
+        if anomaly_results:
+            metric_store.record_results(anomaly_results)
 
     if format == "console":
         if check_results:

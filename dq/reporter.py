@@ -8,6 +8,12 @@ Desteklenen formatlar:
 """
 
 from __future__ import annotations
+import warnings
+warnings.warn(
+    "reporter.py deprecated: reporter_v2.py kullan",
+    DeprecationWarning,
+    stacklevel=2,
+)
 import json
 import sys
 from dataclasses import asdict
