@@ -43,3 +43,30 @@ def test_none_value(store):
     store.record("nullable_metric", None)
     h = store.history("nullable_metric", days=1)
     assert h[0]["value"] is None
+
+
+# ── Postgres integration testleri ─────────────────────────────────────────────
+
+import os
+import pytest
+from dq.metrics import MetricStore
+
+PG_DSN = os.environ.get("METRICS_PG_DSN")
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(not PG_DSN, reason="METRICS_PG_DSN env değişkeni yok")
+def test_postgres_record_and_history():
+    with MetricStore(backend="postgres", dsn=PG_DSN) as store:
+        store.record("pg_row_count", 999.0)
+        h = store.history("pg_row_count", days=1)
+        assert any(r["value"] == 999.0 for r in h)
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(not PG_DSN, reason="METRICS_PG_DSN env değişkeni yok")
+def test_postgres_known_metrics():
+    with MetricStore(backend="postgres", dsn=PG_DSN) as store:
+        store.record("pg_metric_x", 1.0)
+        names = store.known_metrics()
+        assert "pg_metric_x" in names
