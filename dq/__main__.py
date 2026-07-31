@@ -46,7 +46,7 @@ import sys
 from typing import Any
 
 from dq.engine import Check, CheckEngine
-from dq.reporter import report
+from dq.reporter_v2 import report
 from dq.config import SodaConfig
 
 

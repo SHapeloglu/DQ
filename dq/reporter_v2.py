@@ -162,3 +162,9 @@ def full_report(
             print(text)
 
     return 1 if has_failure else 0
+
+
+# Geriye dönük uyumluluk — reporter.py yerine kullan
+def report(results, format="console", output_path=None):
+    return full_report(check_results=results, format=format, output_path=output_path)
+
