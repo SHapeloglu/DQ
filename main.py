@@ -35,9 +35,10 @@ from main_extensions import register_routes
 register_auth_routes(app, templates, get_conn)
 register_routes(app, templates)
 
-from routers import sources, checks
+from routers import sources, checks, api
 app.include_router(sources.router)
 app.include_router(checks.router)
+app.include_router(api.router)
 
 # Static dosyalar varsa
 if os.path.exists("static"):
@@ -86,102 +87,6 @@ def index(request: Request):
         "run_count":    run_count,
         "recent_runs":  recent_runs,
     })
-
-
-# ── Profil ───────────────────────────────────────────────────────────────────
-
-@app.get("/api/columns/{source_id}")
-def api_get_columns(source_id: int):
-    """
-    Katman 2: Hızlı kolon listesi.
-    Wizard'da kaynak seçilince AJAX ile çağrılır.
-    """
-    from profiler import get_columns
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT * FROM sources WHERE id = %s", (source_id,))
-            source = cur.fetchone()
-    finally:
-        conn.close()
-
-    if not source:
-        raise HTTPException(404, "Kaynak bulunamadı")
-
-    import json as _json
-    from dq.connectors import build_connector
-    config = _json.loads(source["config"])
-    config["type"] = source["type"]
-
-    try:
-        connector = build_connector(config)
-        columns   = get_columns(connector)
-        return {"source_id": source_id, "columns": columns}
-    except Exception as e:
-        return {"source_id": source_id, "columns": [], "error": str(e)}
-
-
-@app.post("/api/profile/{source_id}")
-def api_run_profile(source_id: int):
-    """
-    Katman 3: Detaylı profil — tüm kolonları tara, DB'ye kaydet.
-    """
-    import sys, os
-    sys.path.insert(0, os.path.dirname(__file__))
-    from profiler import profile_source, suggest_rules
-    import json as _json
-    from dq.connectors import build_connector
-
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT * FROM sources WHERE id = %s", (source_id,))
-            source = cur.fetchone()
-    except Exception as e:
-        conn.close()
-        raise HTTPException(500, str(e))
-
-    if not source:
-        conn.close()
-        raise HTTPException(404, "Kaynak bulunamadı")
-
-    config = _json.loads(source["config"])
-    config["type"] = source["type"]
-
-    try:
-        connector = build_connector(config)
-        result    = profile_source(connector, source_id, conn)
-        if "columns" in result:
-            result["suggestions"] = suggest_rules(result["columns"], conn)
-        return result
-    except Exception as e:
-        raise HTTPException(500, str(e))
-    finally:
-        conn.close()
-
-
-@app.get("/api/profile/{source_id}")
-def api_get_profile(source_id: int):
-    """Kaydedilmiş profil sonuçlarını döndürür."""
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT * FROM column_profiles WHERE source_id = %s ORDER BY id",
-                (source_id,)
-            )
-            columns = cur.fetchall()
-
-        from profiler import suggest_rules
-        suggestions = suggest_rules(columns, conn) if columns else []
-    finally:
-        conn.close()
-
-    return {
-        "source_id": source_id,
-        "columns":   columns,
-        "suggestions": suggestions,
-    }
 
 
 # ── Wizard ───────────────────────────────────────────────────────────────────
@@ -280,99 +185,3 @@ def run_detail(request: Request, run_id: int):
     })
 
 
-# ── API — Airflow buraya POST atar ────────────────────────────────────────────
-
-from pydantic import BaseModel
-from typing import List, Any, Dict
-
-class RunPayload(BaseModel):
-    source_id: Optional[int] = None
-    dag_id:    Optional[str] = None
-    task_id:   Optional[str] = None
-    results:   List[Dict[str, Any]] = []
-    summary:   Dict[str, Any] = {}
-
-
-@app.post("/api/runs", status_code=201)
-def api_post_run(payload: RunPayload):
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            total  = payload.summary.get("total", len(payload.results))
-            passed = payload.summary.get("passed", 0)
-            failed = total - passed
-            status = "pass" if failed == 0 else "fail"
-
-            cur.execute("""
-                INSERT INTO runs (source_id, dag_id, task_id, total, passed, failed, status)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """, (payload.source_id, payload.dag_id, payload.task_id,
-                  total, passed, failed, status))
-            run_id = cur.lastrowid
-
-            for r in payload.results:
-                cur.execute("""
-                    INSERT INTO run_results
-                        (run_id, check_name, passed, value_actual, expected, message)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                """, (
-                    run_id,
-                    r.get("name", ""),
-                    int(r.get("passed", False)),
-                    str(r.get("value", "")),
-                    str(r.get("expected", "")),
-                    r.get("message", ""),
-                ))
-        conn.commit()
-    finally:
-        conn.close()
-    return {"run_id": run_id, "status": status}
-
-
-@app.get("/api/results")
-def api_results(limit: int = 500, passed: Optional[bool] = None):
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            if passed is not None:
-                cur.execute("""
-                    SELECT rr.*, r.dag_id, r.task_id, r.run_at
-                    FROM run_results rr JOIN runs r ON rr.run_id = r.id
-                    WHERE rr.passed = %s ORDER BY r.run_at DESC LIMIT %s
-                """, (int(passed), limit))
-            else:
-                cur.execute("""
-                    SELECT rr.*, r.dag_id, r.task_id, r.run_at
-                    FROM run_results rr JOIN runs r ON rr.run_id = r.id
-                    ORDER BY r.run_at DESC LIMIT %s
-                """, (limit,))
-            return cur.fetchall()
-    finally:
-        conn.close()
-
-
-@app.get("/odata/Results")
-def odata_results(
-    top:  int = 500,
-    skip: int = 0,
-):
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT rr.*, r.dag_id, r.task_id, r.run_at
-                FROM run_results rr JOIN runs r ON rr.run_id = r.id
-                ORDER BY r.run_at DESC
-                LIMIT %s OFFSET %s
-            """, (top, skip))
-            rows = cur.fetchall()
-    finally:
-        conn.close()
-
-    for r in rows:
-        r["passed"] = bool(r["passed"])
-
-    return {
-        "@odata.context": "/odata/$metadata#Results",
-        "value": rows,
-    }
