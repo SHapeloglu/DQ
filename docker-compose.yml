@@ -36,10 +36,9 @@ services:
     ports:
       - "8002:8000"
     extra_hosts:
-      # Host makinedeki MySQL ve Airflow DB'ye erişim için
       - "host.docker.internal:host-gateway"
     volumes:
-      - ./dags:/app/dags    # TOML ve CSV dosyaları buraya koyulur
+      - ./dags:/app/dags
 
 volumes:
   dq-mysql-data:
