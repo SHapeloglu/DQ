@@ -34,6 +34,9 @@ from typing import Any
 
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
+from dq.contracts import load_contract, ContractValidator
+from dq.config import SodaConfig
+from dq.engine import CheckEngine
 
 
 class DQOperator(BaseOperator):
@@ -113,36 +116,25 @@ class DQOperator(BaseOperator):
 
     def _run_checks(self):
         if self.mode == "contract":
-            from dq.contracts import load_contract, ContractValidator
-            from dq.config import SodaConfig
             import tomllib
-
             with open(self.config, "rb") as f:
                 raw = tomllib.load(f)
-
             contract  = load_contract(self.config)
             cfg       = SodaConfig(raw)
             connector = cfg.build_connector()
             validator = ContractValidator(connector)
             result    = validator.validate(contract)
-            return result.violations   # ContractViolation listesi
-
+            return result.violations
         else:  # checks
-            from dq.config import SodaConfig
-            from dq.engine import CheckEngine
-
             cfg       = SodaConfig.from_toml(self.config)
             connector = cfg.build_connector()
             checks    = cfg.build_checks()
-
             if self.tags:
                 checks = [c for c in checks
                           if any(t in c.tags for t in self.tags)]
-
             engine = CheckEngine(connector)
             engine.add_many(checks)
             return engine.run()
-
     def _log_results(self, results) -> None:
         for r in results:
             name   = getattr(r, "name", None) or getattr(r, "metric_name", "?")
