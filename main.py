@@ -35,6 +35,9 @@ from main_extensions import register_routes
 register_auth_routes(app, templates, get_conn)
 register_routes(app, templates)
 
+from routers import sources
+app.include_router(sources.router)
+
 # Static dosyalar varsa
 if os.path.exists("static"):
     app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -82,131 +85,6 @@ def index(request: Request):
         "run_count":    run_count,
         "recent_runs":  recent_runs,
     })
-
-
-# ── Sources ───────────────────────────────────────────────────────────────────
-
-@app.get("/sources", response_class=HTMLResponse)
-def sources_list(request: Request, msg: str = ""):
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT s.*, COUNT(c.id) as check_count
-                FROM sources s
-                LEFT JOIN checks c ON s.id = c.source_id AND c.is_active = 1
-                GROUP BY s.id
-                ORDER BY s.created_at DESC
-            """)
-            sources = cur.fetchall()
-    finally:
-        conn.close()
-    return templates.TemplateResponse("sources.html", {
-        "request": request, "sources": sources, "msg": msg
-    })
-
-
-@app.get("/sources/new", response_class=HTMLResponse)
-def source_new(request: Request):
-    return templates.TemplateResponse("source_form.html", {
-        "request": request, "source": None
-    })
-
-
-@app.post("/sources/new")
-def source_create(
-    name:     str = Form(...),
-    type:     str = Form(...),
-    path:     str = Form(""),
-    host:     str = Form(""),
-    port:     str = Form(""),
-    database: str = Form(""),
-    user:     str = Form(""),
-    password: str = Form(""),
-):
-    config = {}
-    if type == "csv":
-        config["path"] = path
-    else:
-        config = {"host": host, "port": port, "database": database,
-                  "user": user, "password": password}
-
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                "INSERT INTO sources (name, type, config) VALUES (%s, %s, %s)",
-                (name, type, json.dumps(config))
-            )
-        conn.commit()
-    finally:
-        conn.close()
-
-    return RedirectResponse("/sources?msg=Source+eklendi", status_code=303)
-
-
-@app.get("/sources/{source_id}/edit", response_class=HTMLResponse)
-def source_edit(request: Request, source_id: int):
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT * FROM sources WHERE id = %s", (source_id,))
-            source = cur.fetchone()
-    finally:
-        conn.close()
-
-    if not source:
-        raise HTTPException(404)
-
-    source["config"] = json.loads(source["config"])
-    return templates.TemplateResponse("source_form.html", {
-        "request": request, "source": source
-    })
-
-
-@app.post("/sources/{source_id}/edit")
-def source_update(
-    source_id: int,
-    name:     str = Form(...),
-    type:     str = Form(...),
-    path:     str = Form(""),
-    host:     str = Form(""),
-    port:     str = Form(""),
-    database: str = Form(""),
-    user:     str = Form(""),
-    password: str = Form(""),
-):
-    config = {}
-    if type == "csv":
-        config["path"] = path
-    else:
-        config = {"host": host, "port": port, "database": database,
-                  "user": user, "password": password}
-
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                "UPDATE sources SET name=%s, type=%s, config=%s WHERE id=%s",
-                (name, type, json.dumps(config), source_id)
-            )
-        conn.commit()
-    finally:
-        conn.close()
-
-    return RedirectResponse("/sources?msg=Source+güncellendi", status_code=303)
-
-
-@app.post("/sources/{source_id}/delete")
-def source_delete(source_id: int):
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("DELETE FROM sources WHERE id = %s", (source_id,))
-        conn.commit()
-    finally:
-        conn.close()
-    return RedirectResponse("/sources?msg=Source+silindi", status_code=303)
 
 
 # ── Checks ────────────────────────────────────────────────────────────────────
