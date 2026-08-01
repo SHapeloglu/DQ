@@ -28,6 +28,7 @@ tags     = ["quality"]
 """
 
 from __future__ import annotations
+import os
 import tomllib                        # Python 3.11+ yerleşik; 3.10 için: pip install tomli
 from pathlib import Path
 from typing import Any
@@ -84,10 +85,26 @@ class SodaConfig:
 
     # ── Yükleyiciler ──────────────────────────────────────────────────────
 
+    # ── Env variable çözümleyici ──────────────────────────────────────────
+    @staticmethod
+    def _resolve_env_vars(raw: dict) -> dict:
+        """[source] bloğundaki credentials'ı env variable ile override eder.
+        Kural: DQ_{TYPE}_{FIELD} — örn. DQ_POSTGRES_PASSWORD"""
+        src = raw.get("source", {})
+        db_type = src.get("type", "").upper()
+        for field in ("user", "password", "host", "port", "database"):
+            env_key = f"DQ_{db_type}_{field.upper()}"
+            val = os.getenv(env_key)
+            if val is not None:
+                src[field] = int(val) if field == "port" else val
+        raw["source"] = src
+        return raw
+
     @classmethod
     def from_toml(cls, path: str | Path) -> "SodaConfig":
         with open(path, "rb") as f:
-            return cls(tomllib.load(f))
+            raw = tomllib.load(f)
+        return cls(cls._resolve_env_vars(raw))
 
     @classmethod
     def from_dict(cls, data: dict) -> "SodaConfig":
