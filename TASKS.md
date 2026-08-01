@@ -8,25 +8,25 @@
 - [x] **GÖREV 4 — DB2 Doğrulama** (ibm_db_sa kütüphanesi)
 - [x] **GÖREV 5 — Airflow DAG Genişletme** (PostgreSQL, Oracle, MongoDB DAG'ları)
 
-**Test Sonucu:** 69 passed, 1 skipped ✅
+**Test Sonucu:** 73 passed, 3 skipped ✅
 
 ---
 
 ## Aktif Sprint
 
-### GÖREV 1 — Güvenlik (Öncelik: KRİTİK)
+### ✅ GÖREV 1 — Güvenlik (Tamamlandı — commit: 5249127)
 **Dosya:** `.env`, `.gitignore`, Docker Secrets / Vault
 
-- [ ] `.env.example` oluştur (template olarak)
-- [ ] Production ortamı: Docker Secrets veya Vault entegrasyonu
-- [ ] Airflow connection'ları secure store'dan yükle
-- [ ] Database credentials encrypted olarak sakla
+- [x] `.env.example` oluştur (template olarak)
+- [ ] Production ortamı: Docker Secrets veya Vault entegrasyonu (ertelendi)
+- [ ] Airflow connection'ları secure store'dan yükle (ertelendi)
+- [ ] Database credentials encrypted olarak sakla (ertelendi)
 
 **Test:** `git status` → `.env` ignored görünmeli
 
 ---
 
-### GÖREV 2 — MetricStore Postgres'e Taşı (Öncelik: YÜKSEK)
+### ✅ GÖREV 2 — MetricStore Postgres'e Taşı (Tamamlandı — commit: e931715)
 **Dosya:** `dq/metrics.py`, `dq/reporter_v2.py`
 
 Mevcut durum:
@@ -41,10 +41,10 @@ Hedef:
 MetricStore(dsn="postgresql://...")
 ```
 
-- [ ] `MetricStore` sınıfına Postgres backend ekle
-- [ ] `dwh_health_log` tablo şeması oluştur (migration script)
-- [ ] `reporter_v2.py` çıktı hedefini güncelle
-- [ ] `reporter.py` (v1) deprecated olarak işaretle
+- [x] `MetricStore` sınıfına Postgres backend ekle
+- [x] `dwh_health_log` tablo şeması oluştur (migration script)
+- [x] `reporter_v2.py` çıktı hedefini güncelle
+- [x] `reporter.py` (v1) deprecated olarak işaretle
 
 **Test:** `pytest tests/test_engine.py` geçmeli
 
