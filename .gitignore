@@ -7,3 +7,5 @@ graphify-out/
 *.db
 .claude/
 venv/
+!.claude/
+secrets/

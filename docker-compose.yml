@@ -11,6 +11,7 @@ services:
       MYSQL_DATABASE: dq
     env_file:
       - .env
+      - secrets/.env.secrets
     ports:
       - "3308:3306"
     volumes:
@@ -33,6 +34,7 @@ services:
         condition: service_healthy
     env_file:
       - .env
+      - secrets/.env.secrets
     ports:
       - "8002:8000"
     extra_hosts:
