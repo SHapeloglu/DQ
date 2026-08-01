@@ -8,4 +8,4 @@ graphify-out/
 .claude/
 venv/
 !.claude/
-secrets/
+secrets/.env.secrets
