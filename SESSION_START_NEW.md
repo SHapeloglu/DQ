@@ -9,7 +9,7 @@ Stack: FastAPI + MySQL + Airflow + Docker
 - dq/connectors.py  → BaseConnector + MySQL/PG/Oracle/BQ/CSV/SQLAlchemy/MongoDB/DB2
 - dq/metrics.py     → MetricStore (SQLite dev + Postgres production) ✅
 - dq/reporter.py    → DEPRECATED — reporter_v2.py kullan
-- dq/reporter_v2.py → full_report() + MetricStore entegrasyonu ✅
+- dq/reporter_v2.py → full_report() + MetricStore entegrasyonu + report() alias ✅
 - dq/airflow.py     → DQOperator
 - main.py           → FastAPI app + Jinja2 UI
 - database.py       → MySQL init_db()
@@ -30,15 +30,16 @@ Stack: FastAPI + MySQL + Airflow + Docker
 - [x] MongoConnector → pipeline + filter dict query (GÖREV 3)
 - [x] DB2 support → ibm_db_sa kütüphanesi (GÖREV 4)
 - [x] Airflow DAGs → PostgreSQL, Oracle, MongoDB DAG'ları (GÖREV 5)
-- [x] **GÖREV 1 — Güvenlik** → .env.example, docker-compose hardcoded credentials kaldırıldı (commit: 5249127)
-- [x] **GÖREV 2 — MetricStore Postgres** → migration script, reporter deprecated, reporter_v2 MetricStore entegrasyonu (commit: e931715)
-- [x] tests/test_metrics.py → 4 test (SQLite backend)
-- [x] 73 passed, 1 skipped
+- [x] GÖREV 1 — Güvenlik → .env.example, docker-compose hardcoded credentials kaldırıldı (commit: 5249127)
+- [x] GÖREV 2 — MetricStore Postgres → migration script, reporter deprecated, reporter_v2 entegrasyonu (commit: e931715)
+- [x] __main__.py → reporter_v2'ye geçirildi, deprecated uyarısı kapatıldı (commit: 37a103d)
+- [x] Postgres MetricStore integration testleri → skip guard ile (commit: 2e3f040)
+- [x] 73 passed, 3 skipped
 
 ## Sonraki Görevler
-- [ ] __main__.py → reporter_v2'ye geçir (reporter.py deprecated uyarısını kapat)
-- [ ] Postgres MetricStore integration testi yaz (skip guard ile)
 - [ ] dwh_health_log migration'ı production Postgres'te çalıştır
+- [ ] METRICS_PG_DSN → .env'e ekle (production hazır olduğunda)
+- [ ] Yeni görevler: TASKS.md'e bak
 
 ## Yeni Session'da Yap
 1. Bu dosyayı yükle
