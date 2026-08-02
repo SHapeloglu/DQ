@@ -57,35 +57,3 @@ def flash(request: Request, message: str, type: str = "success"):
     """Basit flash mesaj — session cookie ile."""
     pass  # Template'de direkt query param kullanacağız
 
-
-# ── Ana sayfa ─────────────────────────────────────────────────────────────────
-
-@app.get("/", response_class=HTMLResponse)
-def index(request: Request):
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT COUNT(*) as cnt FROM sources")
-            source_count = cur.fetchone()["cnt"]
-            cur.execute("SELECT COUNT(*) as cnt FROM checks WHERE is_active = 1")
-            check_count = cur.fetchone()["cnt"]
-            cur.execute("SELECT COUNT(*) as cnt FROM runs")
-            run_count = cur.fetchone()["cnt"]
-            cur.execute("""
-                SELECT r.*, s.name as source_name
-                FROM runs r
-                LEFT JOIN sources s ON r.source_id = s.id
-                ORDER BY r.run_at DESC LIMIT 5
-            """)
-            recent_runs = cur.fetchall()
-    finally:
-        conn.close()
-
-    return templates.TemplateResponse("index.html", {
-        "request":      request,
-        "source_count": source_count,
-        "check_count":  check_count,
-        "run_count":    run_count,
-        "recent_runs":  recent_runs,
-    })
-
