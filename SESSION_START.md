@@ -10,8 +10,14 @@ Stack: FastAPI + MySQL + Airflow + Docker
 - dq/config.py      → SodaConfig + _resolve_env_vars() (env override) ✅
 - dq/reporter_v2.py → full_report() + MetricStore entegrasyonu ✅
 - dq/airflow.py     → DQOperator (explicit imports ✅)
-- main.py           → FastAPI app + Jinja2 UI (672 satır) — route ayrımı BEKLIYOR
+- main.py           → FastAPI app init + router include'ları (91 satır) ✅
 - database.py       → MySQL init_db()
+
+## Routers (routers/)
+- routers/sources.py → /sources CRUD (5 route) ✅
+- routers/checks.py  → /checks CRUD + /api/suggestions/reject (7 route) ✅
+- routers/api.py     → /api/columns, /api/profile, /api/runs, /api/results, /odata/Results ✅
+- routers/ui.py      → /wizard, /import, /runs, /runs/{run_id} ✅
 
 ## Güvenlik Katmanı
 - secrets/.env.secrets     → password'lar (chmod 600, git ignore)
@@ -31,22 +37,24 @@ Stack: FastAPI + MySQL + Airflow + Docker
 - Açıklama max 3 satır, kod önce gelir
 
 ## Tamamlananlar (Bu Session)
-- [x] XS: TOML credentials env override — _resolve_env_vars() (commit: b8ce864)
-- [x] S: secrets/ klasörü + docker-compose env_file (commit: 19e0254)
-- [x] M: GPG şifreleme + decrypt_secrets.sh (commit: d3dfdd2)
+- [x] L: main.py route ayrımı → routers/ (672→91 satır, %86 küçültme)
+  - routers/sources.py ✅ (commit: 7d18092)
+  - routers/checks.py  ✅ (commit: 7269191)
+  - routers/api.py     ✅ (commit: b5cb4d0)
+  - routers/ui.py      ✅ (commit: 5813915)
 - [x] 73 passed, 3 skipped
 
 ## Açık Teknik Borçlar
-- [ ] L: main.py route ayrımı → routers/ (routers/__init__.py oluşturuldu, route grupları belirlendi)
-  - ui.py     → /, /wizard, /import
-  - sources.py → /sources CRUD
-  - checks.py  → /checks CRUD + suggestions
-  - api.py    → /api + /runs + /odata
+- [ ] M: main.py'deki index (/) route'u da ui.py'e taşınabilir (isteğe bağlı)
+- [ ] profiler.py N+1 query pattern'i — caching layer yok (production'da risk)
+- [ ] token optimizasyon modülleri (cache_layer.py, optimized_profiler.py) entegrasyon durumu belirsiz
 
 ## Git Son Commit
-d3dfdd2 fix: decrypt_secrets.sh — gpg --yes ile overwrite sorma
+5813915 refactor: wizard/import/runs router'ları routers/ui.py'e taşındı — main.py 672→91 satır
 
 ## Yeni Session'da Yap
 1. SESSION_START.md + CLAUDE.md + ARCHITECTURE.md yükle
-2. L görevi: main.py route ayrımı — routers/ klasörü hazır
-3. İlk adım: sources.py router'ını oluştur
+2. Seçenekler:
+   - profiler.py N+1 sorunu + caching layer entegrasyonu
+   - index (/) route'unu ui.py'e taşı (küçük temizlik)
+   - Yeni görev (TASKS.md / DQ_Gelistirme_Gorevleri.md'den)
