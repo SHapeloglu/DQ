@@ -328,6 +328,53 @@ def _statistical_suggestions(columns_data: list[dict]) -> list[dict]:
                 "confidence":  "high",
                 "library_pattern_id": None,
             })
+        # not_empty: string kolonlar için boş string kontrolü
+        if ctype == "string" and null_pct == 0:
+            suggestions.append({
+                "column":      name,
+                "type":        "empty",
+                "title":       f"{name} boş string olmamalı",
+                "assert_type": "equals",
+                "assert_value": "0",
+                "reason":      "String kolon — boş değer null kadar sorunlu olabilir",
+                "confidence":  "medium",
+                "library_pattern_id": None,
+            })
+        # accepted_values: az sayıda distinct değer varsa enum öner
+        if distinct > 0 and distinct <= 10 and row_count >= 50:
+            suggestions.append({
+                "column":      name,
+                "type":        "enum",
+                "title":       f"{name} sabit değer listesinden gelmeli",
+                "assert_type": "equals",
+                "assert_value": "0",
+                "reason":      f"Sadece {distinct} farklı değer var — enum kontrolü eklenebilir",
+                "confidence":  "medium",
+                "library_pattern_id": None,
+            })
+        # regex/PII: kolon adına göre format öner
+        _pii_patterns = {
+            "email":   r"^[^@]+@[^@]+\.[^@]+$",
+            "mail":    r"^[^@]+@[^@]+\.[^@]+$",
+            "tc":      r"^\d{11}$",
+            "telefon": r"^\+?[\d\s\-]{10,15}$",
+            "phone":   r"^\+?[\d\s\-]{10,15}$",
+            "iban":    r"^TR\d{24}$",
+        }
+        for keyword, pattern in _pii_patterns.items():
+            if keyword in name.lower():
+                suggestions.append({
+                    "column":      name,
+                    "type":        "regex",
+                    "title":       f"{name} format kontrolü",
+                    "assert_type": "equals",
+                    "assert_value": "0",
+                    "reason":      f"Kolon adı '{keyword}' içeriyor — format doğrulama önerilir",
+                    "confidence":  "high",
+                    "library_pattern_id": None,
+                    "regex_pattern": pattern,
+                })
+                break
 
     return suggestions
 
@@ -339,6 +386,10 @@ SUGGESTION_TYPE_TO_RULE_TYPE = {
     "null":      "not_null",
     "duplicate": "unique",
     "range":     "range",
+    "empty":     "not_empty",
+    "regex":     "regex_match",
+    "enum":      "accepted_values",
+    "freshness": "freshness_hours",
 }
 _RULE_TYPE_TO_SUGGESTION_TYPE = {v: k for k, v in SUGGESTION_TYPE_TO_RULE_TYPE.items()}
 

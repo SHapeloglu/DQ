@@ -65,6 +65,24 @@ def equals(expected) -> Callable:
 
 def row_count_at_least(n: int) -> Callable:
     return lambda v: int(v) >= n
+def not_empty(value) -> bool:
+    return value is not None and str(value).strip() != ""
+def accepted_values(allowed: list) -> Callable:
+    return lambda v: v in allowed
+def regex_match(pattern: str) -> Callable:
+    import re
+    return lambda v: bool(re.match(pattern, str(v))) if v is not None else False
+def freshness_hours(max_hours: float) -> Callable:
+    from datetime import datetime, timezone
+    def _check(v) -> bool:
+        if v is None:
+            return False
+        if isinstance(v, str):
+            v = datetime.fromisoformat(v)
+        now = datetime.now(timezone.utc)
+        v_aware = v.replace(tzinfo=timezone.utc) if v.tzinfo is None else v
+        return (now - v_aware).total_seconds() / 3600 <= max_hours
+    return _check
 
 
 # ── Check engine ─────────────────────────────────────────────────────────────
