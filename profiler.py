@@ -424,48 +424,50 @@ def record_suggestion_feedback(conn, pattern_id: int | None, column_name: str,
 
 def get_library_suggestions(columns_data: list[dict], conn) -> list[dict]:
     """
-    Her kolon icin rule_library'de eslesen desenleri arar, kabul oranina gore
-    guven puani hesaplayip suggest_rules() ile ayni formatta oneri uretir.
+    Tüm kolonlar için tek sorguda rule_library'den öneri çeker (N+1 fix).
     """
+    if not columns_data:
+        return []
+
+    col_map: dict[str, str] = {}
+    for col in columns_data:
+        name = col["column"]
+        col_map[normalize_column_pattern(name)] = name
+        col_map[name.lower()] = name
+
+    patterns = list(col_map.keys())
+    placeholders = ", ".join(["%s"] * len(patterns))
+
     suggestions = []
     with conn.cursor() as cur:
-        for col in columns_data:
-            name  = col["column"]
-            ctype = col["type"]
-            pattern = normalize_column_pattern(name)
+        cur.execute(f"""
+            SELECT id, column_name_pattern, rule_type, times_used, times_accepted, times_rejected
+            FROM rule_library
+            WHERE column_name_pattern IN ({placeholders})
+            ORDER BY times_used DESC
+        """, patterns)
+        rows = cur.fetchall()
 
-            cur.execute("""
-                SELECT id, rule_type, times_used, times_accepted, times_rejected
-                FROM rule_library
-                WHERE column_name_pattern IN (%s, %s)
-                ORDER BY times_used DESC
-            """, (pattern, name.lower()))
-            rows = cur.fetchall()
-
-            for row in rows:
-                total_feedback = row["times_accepted"] + row["times_rejected"]
-                accept_rate = (row["times_accepted"] / total_feedback) if total_feedback else None
-
-                # Cok reddedilmis bir deseni tekrar onermeyelim
-                if accept_rate is not None and accept_rate < 0.3 and total_feedback >= 3:
-                    continue
-
-                sugg_type = _RULE_TYPE_TO_SUGGESTION_TYPE.get(row["rule_type"], row["rule_type"])
-                confidence = "high" if row["times_used"] >= 5 else "medium"
-                rate_text = f", kabul oranı %{round(accept_rate*100)}" if accept_rate is not None else ""
-
-                suggestions.append({
-                    "column":      name,
-                    "type":        sugg_type,
-                    "title":       f"{name} — kütüphaneden öneri ({row['rule_type']})",
-                    "assert_type": "equals",
-                    "assert_value": "0",
-                    "reason":      f"Bu desen {row['times_used']} kez kullanıldı{rate_text}",
-                    "confidence":  confidence,
-                    "library_pattern_id": row["id"],
-                })
+    for row in rows:
+        total_feedback = row["times_accepted"] + row["times_rejected"]
+        accept_rate = (row["times_accepted"] / total_feedback) if total_feedback else None
+        if accept_rate is not None and accept_rate < 0.3 and total_feedback >= 3:
+            continue
+        name = col_map.get(row["column_name_pattern"], row["column_name_pattern"])
+        sugg_type = _RULE_TYPE_TO_SUGGESTION_TYPE.get(row["rule_type"], row["rule_type"])
+        confidence = "high" if row["times_used"] >= 5 else "medium"
+        rate_text = f", kabul oranı %{round(accept_rate*100)}" if accept_rate is not None else ""
+        suggestions.append({
+            "column":      name,
+            "type":        sugg_type,
+            "title":       f"{name} — kütüphaneden öneri ({row['rule_type']})",
+            "assert_type": "equals",
+            "assert_value": "0",
+            "reason":      f"Bu desen {row['times_used']} kez kullanıldı{rate_text}",
+            "confidence":  confidence,
+            "library_pattern_id": row["id"],
+        })
     return suggestions
-
 
 def _merge_suggestions(stat_suggestions: list[dict], library_suggestions: list[dict]) -> list[dict]:
     """
