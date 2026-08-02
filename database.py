@@ -110,6 +110,8 @@ def init_db():
                     min_length     INT,
                     max_length     INT,
                     profiled_at    DATETIME,
+                    is_pii         TINYINT(1) DEFAULT 0,
+                    pii_type       VARCHAR(50),
                     FOREIGN KEY (source_id) REFERENCES sources(id) ON DELETE CASCADE
                 )
             """)

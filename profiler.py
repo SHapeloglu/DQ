@@ -205,6 +205,7 @@ def profile_source(connector, source_id: int, db_conn) -> dict:
                 (source_id,)
             )
             # Yeni profil verilerini ekle
+            _pii_kw = {"email", "mail", "tc", "telefon", "phone", "iban"}
             rows_to_insert = [
                 (
                     source_id,
@@ -220,6 +221,8 @@ def profile_source(connector, source_id: int, db_conn) -> dict:
                     col["min_length"],
                     col["max_length"],
                     profiled_at,
+                    int(any(k in col["column"].lower() for k in _pii_kw)),
+                    next((k for k in _pii_kw if k in col["column"].lower()), None),
                 )
                 for col in columns_data
             ]
@@ -228,8 +231,9 @@ def profile_source(connector, source_id: int, db_conn) -> dict:
                     (source_id, column_name, col_type, row_count,
                      null_count, null_pct, distinct_count,
                      min_val, max_val, avg_val,
-                     min_length, max_length, profiled_at)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                     min_length, max_length, profiled_at,
+                     is_pii, pii_type)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
             """, rows_to_insert)
         db_conn.commit()
     except Exception as e:
