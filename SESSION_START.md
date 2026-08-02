@@ -12,6 +12,8 @@ Stack: FastAPI + MySQL + Airflow + Docker
 - dq/airflow.py     → DQOperator (explicit imports ✅)
 - main.py           → FastAPI app init + router include'ları (59 satır) ✅
 - database.py       → MySQL init_db()
+- cache_layer.py    → TTLCache + profile_cache singleton (5 dk TTL) ✅
+- profiler.py       → profile_column cache entegrasyonu ✅
 
 ## Routers (routers/)
 - routers/sources.py → /sources CRUD (5 route) ✅
@@ -38,25 +40,23 @@ Stack: FastAPI + MySQL + Airflow + Docker
 
 ## Tamamlananlar (Bu Session)
 - [x] L: main.py route ayrımı → routers/ (672→59 satır, %91 küçültme)
-  - routers/sources.py ✅ (commit: 7d18092)
-  - routers/checks.py  ✅ (commit: 7269191)
-  - routers/api.py     ✅ (commit: b5cb4d0)
-  - routers/ui.py      ✅ (commit: 5813915)
-  - index (/) → ui.py  ✅ (commit: 28ca66b)
 - [x] perf: get_library_suggestions N+1 → tek sorgu (commit: 4d46e77)
 - [x] perf: profile_source INSERT → executemany (commit: 8cbbc99)
+- [x] feat: cache_layer.py TTL cache + profiler.py entegrasyonu (commit: 36d42a9)
 - [x] 73 passed, 3 skipped
 
 ## Açık Teknik Borçlar
 - [ ] profile_column: her kolon için 3-4 ayrı SQL — connector API sınırı nedeniyle refactor riskli, ertelendi
-- [ ] token optimizasyon modülleri (cache_layer.py, optimized_profiler.py) entegrasyon durumu belirsiz
+- [ ] optimized_profiler.py — profile_column sorgularını tek SQL'de birleştir (büyük iş)
+- [ ] Docker Secrets / Vault entegrasyonu (ertelendi)
+- [ ] Airflow connection'ları secure store'dan yükle (ertelendi)
 
 ## Git Son Commit
-8cbbc99 perf: profile_source INSERT döngüsü executemany ile tek sefere indirildi
+36d42a9 feat: cache_layer.py — TTL cache + profiler.py entegrasyonu
 
 ## Yeni Session'da Yap
 1. SESSION_START.md + CLAUDE.md + ARCHITECTURE.md yükle
 2. Seçenekler:
-   - TASKS.md / DQ_Gelistirme_Gorevleri.md'den yeni görev
-   - cache_layer.py / optimized_profiler.py entegrasyon durumunu kontrol et
-   - profile_column sorgularını birleştir (connector API'ye bağlı, dikkatli)
+   - optimized_profiler.py — profile_column sorgularını birleştir
+   - Yeni özellik / TASKS.md'den görev
+   - Test coverage artır (cache_layer için unit test yaz)
