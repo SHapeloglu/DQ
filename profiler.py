@@ -198,15 +198,8 @@ def profile_source(connector, source_id: int, db_conn) -> dict:
                 (source_id,)
             )
             # Yeni profil verilerini ekle
-            for col in columns_data:
-                cur.execute("""
-                    INSERT INTO column_profiles
-                        (source_id, column_name, col_type, row_count,
-                         null_count, null_pct, distinct_count,
-                         min_val, max_val, avg_val,
-                         min_length, max_length, profiled_at)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                """, (
+            rows_to_insert = [
+                (
                     source_id,
                     col["column"],
                     col["type"],
@@ -220,7 +213,17 @@ def profile_source(connector, source_id: int, db_conn) -> dict:
                     col["min_length"],
                     col["max_length"],
                     profiled_at,
-                ))
+                )
+                for col in columns_data
+            ]
+            cur.executemany("""
+                INSERT INTO column_profiles
+                    (source_id, column_name, col_type, row_count,
+                     null_count, null_pct, distinct_count,
+                     min_val, max_val, avg_val,
+                     min_length, max_length, profiled_at)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            """, rows_to_insert)
         db_conn.commit()
     except Exception as e:
         return {"error": f"DB kayıt hatası: {e}",
