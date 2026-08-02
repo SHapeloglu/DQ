@@ -129,6 +129,23 @@ def api_post_run(payload: RunPayload):
         conn.commit()
     finally:
         conn.close()
+    # Alert gönder (sadece başarısız runlarda)
+    if status == "fail":
+        try:
+            import os
+            from extensions import AlertManager
+            am = AlertManager(
+                email_to      = os.getenv("ALERT_EMAIL_TO") or None,
+                smtp_host     = os.getenv("ALERT_SMTP_HOST", "localhost"),
+                smtp_port     = int(os.getenv("ALERT_SMTP_PORT", "587")),
+                smtp_user     = os.getenv("ALERT_SMTP_USER") or None,
+                smtp_pass     = os.getenv("ALERT_SMTP_PASS") or None,
+                slack_webhook = os.getenv("ALERT_SLACK_WEBHOOK") or None,
+                webhook_url   = os.getenv("ALERT_WEBHOOK_URL") or None,
+            )
+            am.send(payload.results, run_id=run_id, source_name=payload.dag_id or "")
+        except Exception:
+            pass  # Alert hatası run'ı engellemez
     return {"run_id": run_id, "status": status}
 
 
