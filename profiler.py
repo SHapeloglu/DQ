@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from typing import Any
+from cache_layer import profile_cache
 
 
 # ── Katman 2: Hızlı kolon çekme ──────────────────────────────────────────────
@@ -180,10 +181,15 @@ def profile_source(connector, source_id: int, db_conn) -> dict:
 
             columns = list(sample[0].keys())
 
-            # Her kolon için profil çalıştır
+            # Her kolon için profil çalıştır (cache'li)
             for col in columns:
-                col_profile = profile_column(conn, col)
-                columns_data.append(col_profile)
+                cached = profile_cache.get(str(source_id), col)
+                if cached is not None:
+                    columns_data.append(cached)
+                else:
+                    col_profile = profile_column(conn, col)
+                    profile_cache.set(str(source_id), col, value=col_profile)
+                    columns_data.append(col_profile)
 
     except Exception as e:
         return {"error": str(e)}
@@ -192,7 +198,8 @@ def profile_source(connector, source_id: int, db_conn) -> dict:
     profiled_at = datetime.now(timezone.utc).isoformat()
     try:
         with db_conn.cursor() as cur:
-            # Önce eski profil verilerini sil
+            # Cache invalidate + eski profil verilerini sil
+            profile_cache.invalidate(str(source_id))
             cur.execute(
                 "DELETE FROM column_profiles WHERE source_id = %s",
                 (source_id,)
