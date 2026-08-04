@@ -87,6 +87,13 @@ def freshness_hours(max_hours: float) -> Callable:
     return _check
 
 
+def referential_integrity(ref_table: str, ref_column: str) -> Callable:
+    """
+    SQL: SELECT COUNT(*) FROM tablo WHERE kolon NOT IN (SELECT ref_kolon FROM ref_tablo)
+    Dönen değer 0 ise integrity sağlam.
+    """
+    return lambda v: int(v) == 0
+
 # ── Check engine ─────────────────────────────────────────────────────────────
 
 class CheckEngine:

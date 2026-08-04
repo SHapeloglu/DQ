@@ -195,3 +195,28 @@ class TestCheckEngine:
         engine.run()
 
         assert query in basic_connector.call_log
+
+# ── referential_integrity testleri ───────────────────────────────────────────
+class TestReferentialIntegrity:
+    def test_passes_when_no_orphans(self):
+        from dq.engine import referential_integrity
+        check = referential_integrity("orders", "customer_id")
+        assert check(0) is True  # eşleşmeyen kayıt yok
+
+    def test_fails_when_orphans_exist(self):
+        from dq.engine import referential_integrity
+        check = referential_integrity("orders", "customer_id")
+        assert check(5) is False  # 5 orphan kayıt var
+
+    def test_fails_on_any_positive(self):
+        from dq.engine import referential_integrity
+        check = referential_integrity("a", "b")
+        assert check(1) is False
+
+    def test_in_assertion_map(self):
+        from dq.config import _ASSERTION_MAP
+        factory = _ASSERTION_MAP.get("referential_integrity")
+        assert factory is not None
+        fn = factory(["ref_table", "ref_col"])
+        assert fn(0) is True
+        assert fn(3) is False

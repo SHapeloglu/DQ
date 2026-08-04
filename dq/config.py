@@ -36,7 +36,7 @@ from typing import Any
 from dq.engine import (
     Check,
     less_than, greater_than, between, equals,
-    row_count_at_least, row_count_between, is_not_null,
+    row_count_at_least, row_count_between, is_not_null, referential_integrity,
 )
 from dq.connectors import build_connector
 
@@ -50,6 +50,7 @@ _ASSERTION_MAP = {
     "row_count_at_least":  lambda v: row_count_at_least(v),
     "is_not_null":         lambda _: is_not_null,
     "row_count_between":   lambda v: row_count_between(v[0], v[1]),
+    "referential_integrity": lambda v: referential_integrity(v[0], v[1]),
 }
 
 
