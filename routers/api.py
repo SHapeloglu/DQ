@@ -190,3 +190,20 @@ def odata_results(top: int = 500, skip: int = 0):
     for r in rows:
         r["passed"] = bool(r["passed"])
     return {"@odata.context": "/odata/$metadata#Results", "value": rows}
+
+
+# ── Sağlık Skoru ─────────────────────────────────────────────────────────────
+@router.get("/api/health-score")
+def api_all_scores():
+    from dq.scoring import get_all_scores
+    return get_all_scores()
+
+@router.get("/api/health-score/{source_id}")
+def api_health_score(source_id: int):
+    from dq.scoring import get_health_score
+    return get_health_score(source_id)
+
+@router.get("/api/health-score/{source_id}/trend")
+def api_score_trend(source_id: int, days: int = 7):
+    from dq.scoring import get_score_trend
+    return get_score_trend(source_id, days)

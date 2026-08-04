@@ -127,10 +127,25 @@ def index(request: Request):
             recent_runs = cur.fetchall()
     finally:
         conn.close()
+    from dq.scoring import get_all_scores
+    scores = get_all_scores()
     return templates.TemplateResponse("index.html", {
         "request":      request,
         "source_count": source_count,
         "check_count":  check_count,
         "run_count":    run_count,
         "recent_runs":  recent_runs,
+        "scores":       scores,
+    })
+
+
+# ── Sağlık Skoru Dashboard ────────────────────────────────────────────────────
+
+@router.get("/health", response_class=HTMLResponse)
+def health_dashboard(request: Request):
+    from dq.scoring import get_all_scores
+    scores = get_all_scores()
+    return templates.TemplateResponse("health.html", {
+        "request": request,
+        "scores":  scores,
     })
