@@ -207,3 +207,35 @@ def api_health_score(source_id: int):
 def api_score_trend(source_id: int, days: int = 7):
     from dq.scoring import get_score_trend
     return get_score_trend(source_id, days)
+
+# ── Business Glossary ─────────────────────────────────────────────────────────
+@router.get("/api/glossary/{source_id}")
+def api_glossary_get(source_id: int):
+    from database import get_conn
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, column_name, business_name, description, owner, tags
+                FROM column_profiles WHERE source_id = %s
+                ORDER BY column_name
+            """, (source_id,))
+            return cur.fetchall()
+
+@router.put("/api/glossary/{source_id}/{column_name}")
+def api_glossary_update(source_id: int, column_name: str, payload: dict):
+    allowed = {"business_name", "description", "owner", "tags"}
+    updates = {k: v for k, v in payload.items() if k in allowed}
+    if not updates:
+        from fastapi import HTTPException
+        raise HTTPException(400, "Güncellenecek alan yok")
+    fields = ", ".join(f"{k}=%s" for k in updates)
+    values = list(updates.values()) + [source_id, column_name]
+    from database import get_conn
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(f"""
+                UPDATE column_profiles SET {fields}
+                WHERE source_id=%s AND column_name=%s
+            """, values)
+        conn.commit()
+    return {"ok": True, "updated": list(updates.keys())}

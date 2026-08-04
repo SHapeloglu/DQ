@@ -112,6 +112,10 @@ def init_db():
                     profiled_at    DATETIME,
                     is_pii         TINYINT(1) DEFAULT 0,
                     pii_type       VARCHAR(50),
+                    business_name  VARCHAR(100),
+                    description    TEXT,
+                    owner          VARCHAR(100),
+                    tags           VARCHAR(255),
                     FOREIGN KEY (source_id) REFERENCES sources(id) ON DELETE CASCADE
                 )
             """)
