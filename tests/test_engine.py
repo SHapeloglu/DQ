@@ -9,7 +9,7 @@ import pytest
 from dq.engine import (
     Check, CheckEngine, CheckResult,
     greater_than, less_than, between, equals,
-    row_count_at_least, is_not_null,
+    row_count_at_least, row_count_between, is_not_null,
 )
 
 
@@ -56,6 +56,15 @@ class TestAssertions:
 
     def test_row_count_at_least_fails(self):
         assert row_count_at_least(10)(5) is False
+
+    def test_row_count_between_passes(self):
+        assert row_count_between(5, 15)(10) is True
+
+    def test_row_count_between_fails_low(self):
+        assert row_count_between(5, 15)(3) is False
+
+    def test_row_count_between_fails_high(self):
+        assert row_count_between(5, 15)(20) is False
 
     def test_is_not_null_passes(self):
         assert is_not_null(42) is True

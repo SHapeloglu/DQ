@@ -65,6 +65,8 @@ def equals(expected) -> Callable:
 
 def row_count_at_least(n: int) -> Callable:
     return lambda v: int(v) >= n
+def row_count_between(min_n: int, max_n: int) -> Callable:
+    return lambda v: min_n <= int(v) <= max_n
 def not_empty(value) -> bool:
     return value is not None and str(value).strip() != ""
 def accepted_values(allowed: list) -> Callable:
