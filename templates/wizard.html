@@ -47,6 +47,7 @@
         </div>
 
         <!-- Profil sonuçları -->
+        <div id="pii-banner" class="hidden mb-3 bg-yellow-50 border border-yellow-300 rounded-lg px-4 py-3 text-sm text-yellow-800"></div>
         <div id="profile-results" class="hidden bg-white rounded-xl border border-gray-200 p-5"></div>
 
         <!-- 2. Kontrol tipi — 20 kontrol, kategorili -->
@@ -655,12 +656,15 @@ async function runProfile() {
     btn.disabled = true;
 
     try {
-        const [res, gRes] = await Promise.all([
+        const [res, gRes, pRes] = await Promise.all([
             fetch(`/api/profile/${sourceId}`, { method: 'POST' }),
-            fetch(`/api/glossary/${sourceId}`)
+            fetch(`/api/glossary/${sourceId}`),
+            fetch(`/api/pii-report/${sourceId}`)
         ]);
         const data = await res.json();
         const glossary = (await gRes.json()).glossary || {};
+        const piiCols = (await pRes.json()).columns || [];
+        showPiiBanner(piiCols);
         if (data.columns) showProfileResults(data.columns, data.suggestions || [], glossary);
     } catch(e) {
         alert('Profil hatası: ' + e.message);
@@ -668,6 +672,24 @@ async function runProfile() {
         btn.textContent = 'Detaylı Profil çalıştır — istatistik + kural önerisi';
         btn.disabled = false;
     }
+}
+
+function showPiiBanner(piiCols) {
+    const el = document.getElementById('pii-banner');
+    if (!el) return;
+    if (!piiCols || piiCols.length === 0) { el.classList.add('hidden'); return; }
+    const names = piiCols.map(c => `<b>${c.column_name}</b> (${c.pii_type||'PII'})`).join(', ');
+    el.innerHTML = '⚠️ KVKK kapsamında kolon tespit edildi: ' + names;
+    el.classList.remove('hidden');
+}
+
+function showPiiBanner(piiCols) {
+    const el = document.getElementById('pii-banner');
+    if (!el) return;
+    if (!piiCols || piiCols.length === 0) { el.classList.add('hidden'); return; }
+    const names = piiCols.map(c => `<b>${c.column_name}</b> (${c.pii_type||'PII'})`).join(', ');
+    el.innerHTML = '⚠️ KVKK kapsamında kolon tespit edildi: ' + names;
+    el.classList.remove('hidden');
 }
 
 function showProfileResults(columns, suggestions, glossary={}) {
