@@ -94,6 +94,27 @@ def referential_integrity(ref_table: str, ref_column: str) -> Callable:
     """
     return lambda v: int(v) == 0
 
+def completeness_ratio(min_ratio: float) -> Callable:
+    """
+    SQL: SELECT (COUNT(*) - COUNT(kolon)) / COUNT(*) — null oranı
+    min_ratio=0.95 → en az %95 dolu olmalı (null oranı <= 0.05)
+    """
+    return lambda v: round(float(v), 10) <= round(1.0 - min_ratio, 10)
+
+def statistical_anomaly(max_zscore: float) -> Callable:
+    """
+    SQL: SELECT ABS(AVG(kolon) - <beklenen>) / STDDEV(kolon)
+    Dönen z-score değeri eşiği aşmamalı.
+    """
+    return lambda v: float(v) <= max_zscore
+
+def schema_drift(expected_count: int) -> Callable:
+    """
+    SQL: SELECT COUNT(*) FROM information_schema.columns WHERE table_name=... AND table_schema=...
+    Beklenen kolon sayısıyla karşılaştırır.
+    """
+    return lambda v: int(v) == expected_count
+
 # ── Check engine ─────────────────────────────────────────────────────────────
 
 class CheckEngine:

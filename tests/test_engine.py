@@ -220,3 +220,78 @@ class TestReferentialIntegrity:
         fn = factory(["ref_table", "ref_col"])
         assert fn(0) is True
         assert fn(3) is False
+
+
+class TestCompletenessRatio:
+    def test_passes_when_null_ratio_below_threshold(self):
+        from dq.engine import completeness_ratio
+        fn = completeness_ratio(0.95)  # en az %95 dolu
+        assert fn(0.04) is True   # %4 null → geçer
+
+    def test_fails_when_null_ratio_above_threshold(self):
+        from dq.engine import completeness_ratio
+        fn = completeness_ratio(0.95)
+        assert fn(0.06) is False  # %6 null → geçmez
+
+    def test_exact_boundary(self):
+        from dq.engine import completeness_ratio
+        fn = completeness_ratio(0.90)
+        assert fn(0.10) is True   # tam sınır → geçer
+
+    def test_in_assertion_map(self):
+        from dq.config import _ASSERTION_MAP
+        factory = _ASSERTION_MAP.get("completeness_ratio")
+        assert factory is not None
+        fn = factory(0.95)
+        assert fn(0.03) is True
+        assert fn(0.10) is False
+
+
+class TestStatisticalAnomaly:
+    def test_passes_when_zscore_low(self):
+        from dq.engine import statistical_anomaly
+        fn = statistical_anomaly(3.0)
+        assert fn(1.5) is True   # z=1.5 < 3.0 → normal
+
+    def test_fails_when_zscore_high(self):
+        from dq.engine import statistical_anomaly
+        fn = statistical_anomaly(3.0)
+        assert fn(4.2) is False  # z=4.2 > 3.0 → anomali
+
+    def test_exact_boundary(self):
+        from dq.engine import statistical_anomaly
+        fn = statistical_anomaly(2.0)
+        assert fn(2.0) is True   # tam sınır → geçer
+
+    def test_in_assertion_map(self):
+        from dq.config import _ASSERTION_MAP
+        factory = _ASSERTION_MAP.get("statistical_anomaly")
+        assert factory is not None
+        fn = factory(3.0)
+        assert fn(1.0) is True
+        assert fn(5.0) is False
+
+
+class TestSchemaDrift:
+    def test_passes_when_column_count_matches(self):
+        from dq.engine import schema_drift
+        fn = schema_drift(10)
+        assert fn(10) is True
+
+    def test_fails_when_column_added(self):
+        from dq.engine import schema_drift
+        fn = schema_drift(10)
+        assert fn(11) is False  # fazladan kolon eklendi
+
+    def test_fails_when_column_removed(self):
+        from dq.engine import schema_drift
+        fn = schema_drift(10)
+        assert fn(9) is False   # kolon silindi
+
+    def test_in_assertion_map(self):
+        from dq.config import _ASSERTION_MAP
+        factory = _ASSERTION_MAP.get("schema_drift")
+        assert factory is not None
+        fn = factory(5)
+        assert fn(5) is True
+        assert fn(4) is False
