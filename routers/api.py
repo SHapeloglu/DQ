@@ -290,3 +290,103 @@ def api_source_alert_toggle(source_id: int, payload: dict):
     finally:
         conn.close()
     return {"ok": True, "source_id": source_id, "alert_enabled": enabled}
+
+# ── PII / KVKK Raporu ─────────────────────────────────────────────────────────
+@router.get("/api/pii-report")
+def api_pii_report():
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT cp.source_id, s.name as source_name,
+                       cp.column_name, cp.pii_type,
+                       cp.is_pii, cp.tags
+                FROM column_profiles cp
+                JOIN sources s ON cp.source_id = s.id
+                WHERE cp.is_pii = 1
+                ORDER BY s.name, cp.column_name
+            """)
+            rows = cur.fetchall()
+    finally:
+        conn.close()
+    summary: dict = {}
+    for r in rows:
+        sname = r["source_name"]
+        if sname not in summary:
+            summary[sname] = {"source_id": r["source_id"], "pii_columns": []}
+        summary[sname]["pii_columns"].append({
+            "column": r["column_name"],
+            "pii_type": r["pii_type"],
+            "tags": r["tags"],
+        })
+    return {
+        "total_pii_columns": len(rows),
+        "sources_affected": len(summary),
+        "report": summary,
+    }
+
+@router.get("/api/pii-report/{source_id}")
+def api_pii_report_source(source_id: int):
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT column_name, pii_type, tags, null_pct, distinct_count
+                FROM column_profiles
+                WHERE source_id = %s AND is_pii = 1
+                ORDER BY column_name
+            """, (source_id,))
+            rows = cur.fetchall()
+    finally:
+        conn.close()
+    return {"source_id": source_id, "pii_columns": rows, "count": len(rows)}
+
+# ── PII / KVKK Raporu ─────────────────────────────────────────────────────────
+@router.get("/api/pii-report")
+def api_pii_report():
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT cp.source_id, s.name as source_name,
+                       cp.column_name, cp.pii_type,
+                       cp.is_pii, cp.tags
+                FROM column_profiles cp
+                JOIN sources s ON cp.source_id = s.id
+                WHERE cp.is_pii = 1
+                ORDER BY s.name, cp.column_name
+            """)
+            rows = cur.fetchall()
+    finally:
+        conn.close()
+    summary: dict = {}
+    for r in rows:
+        sname = r["source_name"]
+        if sname not in summary:
+            summary[sname] = {"source_id": r["source_id"], "pii_columns": []}
+        summary[sname]["pii_columns"].append({
+            "column": r["column_name"],
+            "pii_type": r["pii_type"],
+            "tags": r["tags"],
+        })
+    return {
+        "total_pii_columns": len(rows),
+        "sources_affected": len(summary),
+        "report": summary,
+    }
+
+@router.get("/api/pii-report/{source_id}")
+def api_pii_report_source(source_id: int):
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT column_name, pii_type, tags, null_pct, distinct_count
+                FROM column_profiles
+                WHERE source_id = %s AND is_pii = 1
+                ORDER BY column_name
+            """, (source_id,))
+            rows = cur.fetchall()
+    finally:
+        conn.close()
+    return {"source_id": source_id, "pii_columns": rows, "count": len(rows)}

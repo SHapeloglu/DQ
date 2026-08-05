@@ -205,7 +205,7 @@ def profile_source(connector, source_id: int, db_conn) -> dict:
                 (source_id,)
             )
             # Yeni profil verilerini ekle
-            _pii_kw = {"email", "mail", "tc", "telefon", "phone", "iban"}
+            _pii_kw = {"email", "mail", "tc", "tckn", "telefon", "phone", "iban", "ad", "soyad", "isim", "dogum", "birth", "adres", "address", "pasaport", "passport", "kredi", "credit", "hesap", "account", "sifre", "password", "ip_", "konum", "location"}
             rows_to_insert = [
                 (
                     source_id,
@@ -358,12 +358,17 @@ def _statistical_suggestions(columns_data: list[dict]) -> list[dict]:
             })
         # regex/PII: kolon adına göre format öner
         _pii_patterns = {
-            "email":   r"^[^@]+@[^@]+\.[^@]+$",
-            "mail":    r"^[^@]+@[^@]+\.[^@]+$",
-            "tc":      r"^\d{11}$",
-            "telefon": r"^\+?[\d\s\-]{10,15}$",
-            "phone":   r"^\+?[\d\s\-]{10,15}$",
-            "iban":    r"^TR\d{24}$",
+            "email":    r"^[^@]+@[^@]+\.[^@]+$",
+            "mail":     r"^[^@]+@[^@]+\.[^@]+$",
+            "tc":       r"^\d{11}$",
+            "tckn":     r"^\d{11}$",
+            "telefon":  r"^\+?[\d\s\-]{10,15}$",
+            "phone":    r"^\+?[\d\s\-]{10,15}$",
+            "iban":     r"^TR\d{24}$",
+            "kredi":    r"^\d{16}$",
+            "credit":   r"^\d{16}$",
+            "pasaport": r"^[A-Z]{2}\d{7}$",
+            "passport": r"^[A-Z]{2}\d{7}$",
         }
         for keyword, pattern in _pii_patterns.items():
             if keyword in name.lower():
