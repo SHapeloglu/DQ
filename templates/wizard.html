@@ -613,7 +613,7 @@ async function loadColumns(){
         const cols = data.columns || [];
 
         if (cols.length > 0) {
-            ['col-null','col-range','col-dup','col-ratio','col-fresh'].forEach(id => {
+            ['col-null','col-range','col-dup','col-ratio','col-fresh','col-negative','col-stddev','col-regex','col-email','col-phone','col-empty','col-vset','col-drange','col-dfmt'].forEach(id => {
                 const el = document.getElementById(id);
                 if (!el) return;
                 const current = el.value;
@@ -639,8 +639,7 @@ async function loadColumns(){
 
 function selectColumn(col) {
     const mapId = {
-        'null': 'col-null', 'range': 'col-range',
-        'duplicate': 'col-dup', 'ratio': 'col-ratio', 'freshness': 'col-fresh'
+        'null': 'col-null', 'range': 'col-range', 'duplicate': 'col-dup', 'ratio': 'col-ratio', 'freshness': 'col-fresh', 'negative': 'col-negative', 'stddev': 'col-stddev', 'regex': 'col-regex', 'email': 'col-email', 'phone': 'col-phone', 'empty_string': 'col-empty', 'value_set': 'col-vset', 'date_range': 'col-drange', 'date_format': 'col-dfmt', 'date_order': 'col-null'
     };
     const elId = mapId[currentType];
     if (elId) {
