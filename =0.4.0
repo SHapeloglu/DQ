@@ -1,0 +1,13 @@
+Collecting ibm-db
+  Downloading ibm_db-3.2.9-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (35 kB)
+Collecting ibm-db-sa
+  Downloading ibm_db_sa-0.4.4-py3-none-any.whl.metadata (8.4 kB)
+Requirement already satisfied: sqlalchemy>=0.7.3 in /opt/fretflow/venv/lib/python3.12/site-packages (from ibm-db-sa) (2.0.30)
+Requirement already satisfied: typing-extensions>=4.6.0 in /opt/fretflow/venv/lib/python3.12/site-packages (from sqlalchemy>=0.7.3->ibm-db-sa) (4.15.0)
+Requirement already satisfied: greenlet!=0.4.17 in /opt/fretflow/venv/lib/python3.12/site-packages (from sqlalchemy>=0.7.3->ibm-db-sa) (3.5.3)
+Downloading ibm_db-3.2.9-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (43.9 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 43.9/43.9 MB 11.4 MB/s eta 0:00:00
+Downloading ibm_db_sa-0.4.4-py3-none-any.whl (42 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 42.7/42.7 kB 567.1 kB/s eta 0:00:00
+Installing collected packages: ibm-db, ibm-db-sa
+Successfully installed ibm-db-3.2.9 ibm-db-sa-0.4.4

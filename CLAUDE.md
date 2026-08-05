@@ -1,23 +1,30 @@
 # DQ (Data Quality Platform) - Proje Anayasası
 
 ## Proje Özeti
-DQ; veritabanı bağlayıcıları (`connectors`), kalite motoru (`engine`), Airflow entegrasyonları, FastAPI web arayüzü ve anomali tespiti içeren modüler bir Python Veri Kalitesi platformudur.
+DQ; veritabanı bağlayıcıları, kalite motoru, Airflow entegrasyonları, FastAPI web arayüzü ve anomali tespiti içeren modüler bir Python Veri Kalitesi platformudur.
 
 ## Kodlama Standartları
-- **Python Sürümü:** Python 3.10+
-- **Tip İpuçları:** Tüm fonksiyon ve metotlarda Type Hinting zorunludur.
-- **Hata Yönetimi:** Özel exception (Custom Exception) yapıları kullanılmalıdır.
-- **Kod Stili:** PEP8 standartlarına uygun, modüler ve temiz kod.
-- **Testler:** Testler `pytest` ile `tests/` klasörü altında yürütülür.
+- Python 3.10+
+- Tüm fonksiyonlarda Type Hinting zorunlu
+- Özel exception yapıları kullan
+- PEP8, modüler ve temiz kod
+- Testler pytest ile tests/ altında
 
-## Temel Çalıştırma Komutları
-- Testleri Çalıştır: `pytest tests/`
-- Uygulamayı Başlat: `python main.py`
-- Docker ile Çalıştır: `docker-compose up -d`
+## Temel Komutlar
+- Test: cd /opt/dq/dq_docker && pytest tests/
+- Docker rebuild: docker compose build dq-web && docker compose up -d dq-web
+- DB migration: docker exec -i dq-db mysql -u root -proot dq -e "..."
 
 ## Token Kuralları (Sıkı)
-- Sormadan `main.py`, `templates/` veya `tests/` dosyalarını context'e ekleme
-- Değişiklik tek fonksiyon/metot bazında yap, tüm dosyayı yazma
+- Sormadan main.py, templates/, tests/ context'e ekleme
+- Değişiklik tek fonksiyon/metot bazında yap
 - HTML şablonları HİÇBİR ZAMAN context'e girmesin
-- graphify-out/ klasörünü context'e ekleme
 - Açıklama istenmediği sürece sadece kod yaz
+
+## Kritik Hatırlatmalar
+- Çalışma dizini: /opt/dq/dq_docker — root'tan komut çalıştırma
+- Multi-komut paste sorun çıkarır — tek komut at
+- sed ile düzenleme bazen sessizce başarısız — Python ile değiştir
+- BaseConnector abstract metodu close() — disconnect() değil
+- SqlAlchemyConnector.test_connection() → dict içinde dialect key zorunlu
+- alert_settings tablosu singleton (id=1)
