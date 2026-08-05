@@ -655,9 +655,13 @@ async function runProfile() {
     btn.disabled = true;
 
     try {
-        const res  = await fetch(`/api/profile/${sourceId}`, { method: 'POST' });
+        const [res, gRes] = await Promise.all([
+            fetch(`/api/profile/${sourceId}`, { method: 'POST' }),
+            fetch(`/api/glossary/${sourceId}`)
+        ]);
         const data = await res.json();
-        if (data.columns) showProfileResults(data.columns, data.suggestions || []);
+        const glossary = (await gRes.json()).glossary || {};
+        if (data.columns) showProfileResults(data.columns, data.suggestions || [], glossary);
     } catch(e) {
         alert('Profil hatası: ' + e.message);
     } finally {
@@ -666,11 +670,20 @@ async function runProfile() {
     }
 }
 
-function showProfileResults(columns, suggestions) {
+function showProfileResults(columns, suggestions, glossary={}) {
     const container = document.getElementById('profile-results');
     if (!container) return;
 
-    const cols = columns.map(c => `
+    const cols = columns.map(c => {
+        const cname = c.column_name||c.column;
+        const g = glossary[cname] || {};
+        const gRow = (g.business_name||g.description||g.owner) ? `
+            <div class='mt-1 pt-1 border-t border-gray-200 text-xs text-indigo-700 flex flex-wrap gap-2'>
+                ${g.business_name ? `<span>📖 <b>${g.business_name}</b></span>` : ''}
+                ${g.description  ? `<span class='text-gray-500'>${g.description}</span>` : ''}
+                ${g.owner        ? `<span>👤 ${g.owner}</span>` : ''}
+            </div>` : '';
+        return `
         <div class="bg-gray-50 border border-gray-100 rounded-lg p-3 mb-2">
             <div class="flex justify-between items-center mb-1">
                 <span class="text-sm font-medium text-gray-900">${c.column_name||c.column}</span>
@@ -684,7 +697,10 @@ function showProfileResults(columns, suggestions) {
                 ${c.max_val||c.max ? `<span>Max: <b>${c.max_val||c.max}</b></span>` : ''}
                 ${c.avg_val ? `<span>Ort: <b>${c.avg_val}</b></span>` : ''}
             </div>
-        </div>`).join('');
+            ${gRow}
+        </div>`;
+    }).join('');
+
 
     const suggs = suggestions.map((s, idx) => `
         <div id="sugg-${idx}" class="bg-green-50 border border-green-100 rounded-lg p-3 mb-2 hover:border-green-300 transition">
