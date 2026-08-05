@@ -129,21 +129,24 @@ def api_post_run(payload: RunPayload):
         conn.commit()
     finally:
         conn.close()
-    # Alert gönder (sadece başarısız runlarda)
+    # Alert gönder (sadece başarısız runlarda, source alert_enabled ise)
     if status == "fail":
         try:
-            import os
-            from extensions import AlertManager
-            am = AlertManager(
-                email_to      = os.getenv("ALERT_EMAIL_TO") or None,
-                smtp_host     = os.getenv("ALERT_SMTP_HOST", "localhost"),
-                smtp_port     = int(os.getenv("ALERT_SMTP_PORT", "587")),
-                smtp_user     = os.getenv("ALERT_SMTP_USER") or None,
-                smtp_pass     = os.getenv("ALERT_SMTP_PASS") or None,
-                slack_webhook = os.getenv("ALERT_SLACK_WEBHOOK") or None,
-                webhook_url   = os.getenv("ALERT_WEBHOOK_URL") or None,
-            )
-            am.send(payload.results, run_id=run_id, source_name=payload.dag_id or "")
+            from extensions import load_alert_manager
+            _ac = get_conn()
+            try:
+                with _ac.cursor() as _cur:
+                    if payload.source_id:
+                        _cur.execute("SELECT alert_enabled FROM sources WHERE id=%s", (payload.source_id,))
+                        _row = _cur.fetchone()
+                        _enabled = (_row or {}).get("alert_enabled", 1)
+                    else:
+                        _enabled = 1
+                am = load_alert_manager(_ac) if _enabled else None
+            finally:
+                _ac.close()
+            if am:
+                am.send(payload.results, run_id=run_id, source_name=payload.dag_id or "")
         except Exception:
             pass  # Alert hatası run'ı engellemez
     return {"run_id": run_id, "status": status}
@@ -239,3 +242,51 @@ def api_glossary_update(source_id: int, column_name: str, payload: dict):
             """, values)
         conn.commit()
     return {"ok": True, "updated": list(updates.keys())}
+
+# ── Alert Ayarları ────────────────────────────────────────────────────────────
+@router.get("/api/alert-settings")
+def api_alert_settings_get():
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM alert_settings LIMIT 1")
+            row = cur.fetchone()
+        return row or {}
+    finally:
+        conn.close()
+
+@router.put("/api/alert-settings")
+def api_alert_settings_put(payload: dict):
+    allowed = {"slack_webhook","webhook_url","email_to","smtp_host","smtp_port","smtp_user","smtp_pass"}
+    data = {k: v for k, v in payload.items() if k in allowed}
+    if not data:
+        from fastapi import HTTPException
+        raise HTTPException(400, "Güncellenecek alan yok")
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM alert_settings LIMIT 1")
+            exists = cur.fetchone()
+            if exists:
+                fields = ", ".join(f"{k}=%s" for k in data)
+                cur.execute(f"UPDATE alert_settings SET {fields} WHERE id=1", list(data.values()))
+            else:
+                fields = ", ".join(data.keys())
+                placeholders = ", ".join(["%s"] * len(data))
+                cur.execute(f"INSERT INTO alert_settings (id, {fields}) VALUES (1, {placeholders})", list(data.values()))
+        conn.commit()
+    finally:
+        conn.close()
+    return {"ok": True, "updated": list(data.keys())}
+
+@router.put("/api/sources/{source_id}/alert-enabled")
+def api_source_alert_toggle(source_id: int, payload: dict):
+    enabled = int(bool(payload.get("alert_enabled", 1)))
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE sources SET alert_enabled=%s WHERE id=%s", (enabled, source_id))
+        conn.commit()
+    finally:
+        conn.close()
+    return {"ok": True, "source_id": source_id, "alert_enabled": enabled}
