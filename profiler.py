@@ -83,29 +83,23 @@ def profile_column(conn, column: str, table: str = "source") -> dict[str, Any]:
     }
 
     try:
-        # Temel istatistikler
+        # Temel istatistikler + distinct tek sorguda
         rows = conn.execute(f"""
             SELECT
                 COUNT(*) as row_count,
-                COUNT("{column}") as non_null_count,
-                COUNT(*) - COUNT("{column}") as null_count
+                COUNT(*) - COUNT("{column}") as null_count,
+                COUNT(DISTINCT "{column}") as dc
             FROM {table}
         """)
         if rows:
             r = rows[0]
-            result["row_count"]   = int(r.get("row_count") or 0)
-            result["null_count"]  = int(r.get("null_count") or 0)
+            result["row_count"]      = int(r.get("row_count") or 0)
+            result["null_count"]     = int(r.get("null_count") or 0)
+            result["distinct_count"] = int(r.get("dc") or 0)
             total = result["row_count"]
             result["null_pct"] = round(
                 result["null_count"] * 100.0 / total if total > 0 else 0, 2
             )
-
-        # Distinct sayısı
-        rows = conn.execute(
-            f'SELECT COUNT(DISTINCT "{column}") as dc FROM {table}'
-        )
-        if rows:
-            result["distinct_count"] = int(rows[0].get("dc") or 0)
 
         # Tip tespiti için örnek değerler
         sample = conn.execute(
