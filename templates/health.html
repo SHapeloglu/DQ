@@ -2,7 +2,10 @@
 {% block title %}Sağlık Skoru — DQ{% endblock %}
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 py-8">
-  <h1 class="text-2xl font-bold text-gray-800 mb-6">Sağlık Skoru Dashboard</h1>
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">Sağlık Skoru Dashboard</h1>
+    <button onclick="downloadPiiCsv()" class="text-sm bg-yellow-50 border border-yellow-300 text-yellow-800 px-4 py-2 rounded-lg hover:bg-yellow-100 transition">⬇️ KVKK Raporu CSV</button>
+  </div>
 
   {% if not scores %}
     <p class="text-gray-500">Henüz hiç run kaydı yok.</p>
@@ -89,6 +92,21 @@ async function loadTrend(sourceId, sourceName) {
       plugins: { legend: { display: false } }
     }
   });
+}
+
+async function downloadPiiCsv() {
+    const res = await fetch('/api/pii-report');
+    const data = await res.json();
+    const rows = data.sources || [];
+    const lines = ['Kaynak,Kolon,PII Tipi,Null%,Benzersiz'];
+    rows.forEach(s => (s.columns||[]).forEach(c =>
+        lines.push(`"${s.source_name}","${c.column_name}","${c.pii_type||''}","${c.null_pct||''}","${c.distinct_count||''}"`)
+    ));
+    const blob = new Blob([lines.join('\n')], {type:'text/csv'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'kvkk_raporu.csv';
+    a.click();
 }
 </script>
 {% endblock %}
