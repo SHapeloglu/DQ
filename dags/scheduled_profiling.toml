@@ -1,0 +1,16 @@
+# Scheduled Profiling — Kaynak bazlı zamanlama
+# Her kaynak için ayrı profil tetikleme zamanı tanımlanabilir
+
+[global]
+dq_api_base_url = "http://host.docker.internal:8002"
+default_schedule  = "@daily"
+
+[[sources]]
+source_id = 1
+schedule  = "@daily"
+enabled   = true
+
+[[sources]]
+source_id = 2
+schedule  = "0 6 * * *"
+enabled   = true
