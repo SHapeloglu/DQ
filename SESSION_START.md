@@ -4,14 +4,15 @@ Konum: /opt/dq/dq_docker (Contabo VPS, SSH erişimi)
 Stack: FastAPI + MySQL + Airflow + Docker
 
 ## Mimari (özet)
-- dq/engine.py      → CheckEngine + assert tipleri (not_empty, regex_match, accepted_values, freshness_hours) ✅
+- dq/engine.py      → CheckEngine + assert tipleri (not_empty, regex_match, accepted_values, freshness_hours, row_count_between, referential_integrity) ✅
 - dq/connectors.py  → BaseConnector + MySQL/PG/Oracle/BQ/CSV/SQLAlchemy/MongoDB/DB2
 - dq/metrics.py     → MetricStore (SQLite dev + Postgres production) ✅
-- dq/config.py      → SodaConfig + _resolve_env_vars() ✅
+- dq/config.py      → SodaConfig + _resolve_env_vars() + referential_integrity ✅
+- dq/scoring.py     → get_health_score(), get_score_trend(), get_all_scores() ✅
 - dq/reporter_v2.py → full_report() + MetricStore entegrasyonu ✅
 - dq/airflow.py     → DQOperator ✅
 - main.py           → FastAPI app init + router include'ları (59 satır) ✅
-- database.py       → MySQL init_db() + column_profiles PII kolonları ✅
+- database.py       → MySQL init_db() + column_profiles PII + glossary kolonları ✅
 - cache_layer.py    → TTLCache + profile_cache singleton (5 dk TTL) ✅
 - profiler.py       → cache + PII tagging + enum/regex/empty önerileri ✅
 - extensions.py     → AlertManager (email/slack/webhook) ✅
@@ -19,8 +20,8 @@ Stack: FastAPI + MySQL + Airflow + Docker
 ## Routers (routers/)
 - routers/sources.py → /sources CRUD ✅
 - routers/checks.py  → /checks CRUD + /api/suggestions/reject ✅
-- routers/api.py     → /api/* + /odata + alerting entegrasyonu ✅
-- routers/ui.py      → /wizard, /import, /runs, / ✅
+- routers/api.py     → /api/* + /odata + alerting + /api/health-score + /api/glossary ✅
+- routers/ui.py      → /wizard, /import, /runs, /health, / ✅
 
 ## Güvenlik Katmanı
 - secrets/.env.secrets     → password'lar + SMTP/alert config (chmod 600, git ignore)
@@ -32,10 +33,21 @@ Stack: FastAPI + MySQL + Airflow + Docker
 ## Docker
 - dq-web  → 0.0.0.0:8002 (uvicorn)
 - dq-db   → 0.0.0.0:3308 (mysql:8.0)
+- ÖNEMLİ: Kod değişikliklerinin yürürlüğe girmesi için `docker compose build dq-web && docker compose up -d dq-web` gerekir
+  (sadece dags/ klasörü volume mount edilmiş, diğer dosyalar image içinde)
 
 ## Postgres (MetricStore — Production)
 - DSN: postgresql://dquser:dqpass@host.docker.internal:5432/dqmetrics
 - Şema: dwh_health_log.dq_metrics ✅
+
+## Business Glossary
+- column_profiles tablosuna eklendi: business_name, description, owner, tags
+- GET  /api/glossary/{source_id}
+- PUT  /api/glossary/{source_id}/{column_name}
+
+## Airflow DAG'ları (dags/)
+- dq_mysql_dag.py, dq_postgres_dag.py, dq_oracle_dag.py, dq_mongo_dag.py
+- dq_scheduled_profiling_dag.py → scheduled_profiling.toml ile periyodik profil tetikleme ✅
 
 ## Kurallar (UYULACAK)
 - Sadece değişen fonksiyon/blok yaz
@@ -45,25 +57,21 @@ Stack: FastAPI + MySQL + Airflow + Docker
 - DB migration: docker exec -i dq-db mysql -u root -proot dq -e "..."
 
 ## Tamamlananlar (Bu Session)
-- [x] L: main.py route ayrımı → routers/ (672→59 satır) (commit: 5813915)
-- [x] perf: N+1 fix + executemany (commit: 4d46e77, 8cbbc99)
-- [x] feat: cache_layer.py TTL cache (commit: 36d42a9)
-- [x] feat: yeni assert tipleri (commit: 9736b9d)
-- [x] feat: GÖREV 7 alerting (commit: 263fe8c)
-- [x] feat: GÖREV 8 PII tagging (commit: 92d5fcc)
-- [x] 73 passed, 3 skipped
+- [x] GÖREV 9: Business Glossary — column_profiles + GET/PUT endpoint (commit: 1c5f604)
+- [x] GÖREV 11: referential_integrity assert tipi + testler (commit: f6c8c50)
+- [x] GÖREV 10: Scheduled Profiling DAG + TOML config (commit: 5757043)
+- [x] routers/ unit testleri — 12 test (commit: 30abc14)
+- [x] 96 passed, 3 skipped
 
-## Açık Görevler (Öncelik Sırasına Göre)
-- [ ] GÖREV 6: Sağlık Skoru Dashboard (0-100 skor, trafik ışığı, trend)
-- [ ] GÖREV 9: Business Glossary (kolon açıklaması, sahip, etiket)
-- [ ] GÖREV 10: Scheduled Profiling (Airflow DAG ile otomatik)
-- [ ] GÖREV 11 kalan: referential_integrity, row_count_between
-- [ ] profile_column: 3-4 ayrı SQL → birleştirme (connector API sınırı, riskli)
-- [ ] routers/ için unit testler
+## Açık Görevler
+- [ ] profile_column: 3-4 ayrı SQL → birleştirme (connector API sınırı, riskli, ertelendi)
+- [ ] Docker Secrets / Vault entegrasyonu (ertelendi)
+- [ ] Airflow connection'ları secure store'dan yükle (ertelendi)
+- [ ] GÖREV 9 kalan: Wizard'da glossary bilgisi gösterimi (UI tarafı)
 
 ## Git Son Commit
-92d5fcc feat: GÖREV 8 — PII tagging (is_pii, pii_type) column_profiles'a eklendi
+30abc14 feat: routers/ unit testleri — sources, checks, glossary iş mantığı (12 test)
 
 ## Yeni Session'da Yap
 1. SESSION_START.md + CLAUDE.md + ARCHITECTURE.md yükle
-2. GÖREV 6: Sağlık Skoru Dashboard'dan başla
+2. Wizard'da glossary UI veya yeni görev
