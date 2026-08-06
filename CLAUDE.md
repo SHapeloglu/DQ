@@ -1,7 +1,7 @@
 # DQ (Data Quality Platform) - Proje Anayasası
 
 ## Proje Özeti
-DQ; veritabanı bağlayıcıları, kalite motoru, Airflow entegrasyonları, FastAPI web arayüzü ve anomali tespiti içeren modüler bir Python Veri Kalitesi platformudur.
+DQ; veritabanı bağlayıcıları, kalite motoru, Airflow entegrasyonları, FastAPI web arayüzü, PII/KVKK tespiti, alerting ve sağlık skoru içeren modüler bir Python Veri Kalitesi platformudur.
 
 ## Kodlama Standartları
 - Python 3.10+
@@ -28,3 +28,11 @@ DQ; veritabanı bağlayıcıları, kalite motoru, Airflow entegrasyonları, Fast
 - BaseConnector abstract metodu close() — disconnect() değil
 - SqlAlchemyConnector.test_connection() → dict içinde dialect key zorunlu
 - alert_settings tablosu singleton (id=1)
+- Docker image içine COPY yapılıyor — sadece dags/ volume mount
+- Dosya düzenlemelerinde önce satır numarasını doğrula, sonra değiştir
+
+## Mevcut Assert Tipleri
+not_empty, regex_match, accepted_values, freshness_hours, row_count_between, referential_integrity, equals, between, greater_than, less_than
+
+## Eksik / Backlog Assert Tipleri
+custom_sql, schema_check, duplicate_row, volume_anomaly, statistical_anomaly
