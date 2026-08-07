@@ -115,6 +115,42 @@ def schema_drift(expected_count: int) -> Callable:
     """
     return lambda v: int(v) == expected_count
 
+def schema_check(expected_columns: dict) -> Callable:
+    """
+    Kolon varlığı + tip kontrolü.
+
+    SQL: SELECT column_name, data_type
+         FROM information_schema.columns
+         WHERE table_name=... AND table_schema=...
+
+    Dönen değer JSON string — her satır {"column_name": ..., "data_type": ...}
+    expected_columns: {"kolon_adi": "beklenen_tip", ...}  tip None ise sadece varlık kontrol edilir.
+    """
+    import json
+
+    def _check(v) -> bool:
+        if v is None:
+            return False
+        if isinstance(v, str):
+            try:
+                rows = json.loads(v)
+            except Exception:
+                return False
+        else:
+            rows = v
+
+        actual = {r["column_name"].lower(): r["data_type"].lower() for r in rows}
+        for col, expected_type in expected_columns.items():
+            col_lower = col.lower()
+            if col_lower not in actual:
+                return False
+            if expected_type is not None:
+                if expected_type.lower() not in actual[col_lower]:
+                    return False
+        return True
+
+    return _check
+
 # ── Check engine ─────────────────────────────────────────────────────────────
 
 class CheckEngine:

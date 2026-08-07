@@ -295,3 +295,61 @@ class TestSchemaDrift:
         fn = factory(5)
         assert fn(5) is True
         assert fn(4) is False
+
+
+class TestSchemaCheck:
+    def test_passes_when_all_columns_present_with_correct_types(self):
+        from dq.engine import schema_check
+        fn = schema_check({"id": "int", "email": "varchar"})
+        rows = [
+            {"column_name": "id",    "data_type": "int"},
+            {"column_name": "email", "data_type": "varchar"},
+        ]
+        assert fn(rows) is True
+
+    def test_passes_when_type_check_skipped(self):
+        from dq.engine import schema_check
+        fn = schema_check({"id": None, "email": None})
+        rows = [
+            {"column_name": "id",    "data_type": "bigint"},
+            {"column_name": "email", "data_type": "text"},
+        ]
+        assert fn(rows) is True
+
+    def test_fails_when_column_missing(self):
+        from dq.engine import schema_check
+        fn = schema_check({"id": "int", "phone": "varchar"})
+        rows = [{"column_name": "id", "data_type": "int"}]
+        assert fn(rows) is False
+
+    def test_fails_when_type_mismatch(self):
+        from dq.engine import schema_check
+        fn = schema_check({"id": "int"})
+        rows = [{"column_name": "id", "data_type": "varchar"}]
+        assert fn(rows) is False
+
+    def test_passes_with_json_string_input(self):
+        import json
+        from dq.engine import schema_check
+        fn = schema_check({"id": "int"})
+        rows_json = json.dumps([{"column_name": "id", "data_type": "int"}])
+        assert fn(rows_json) is True
+
+    def test_fails_on_none_input(self):
+        from dq.engine import schema_check
+        fn = schema_check({"id": "int"})
+        assert fn(None) is False
+
+    def test_case_insensitive_column_and_type(self):
+        from dq.engine import schema_check
+        fn = schema_check({"ID": "INT"})
+        rows = [{"column_name": "id", "data_type": "int"}]
+        assert fn(rows) is True
+
+    def test_in_assertion_map(self):
+        from dq.config import _ASSERTION_MAP
+        factory = _ASSERTION_MAP.get("schema_check")
+        assert factory is not None
+        fn = factory({"id": "int"})
+        rows = [{"column_name": "id", "data_type": "int"}]
+        assert fn(rows) is True

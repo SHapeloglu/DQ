@@ -37,7 +37,7 @@ from dq.engine import (
     Check,
     less_than, greater_than, between, equals,
     row_count_at_least, row_count_between, is_not_null, referential_integrity,
-    completeness_ratio, statistical_anomaly, schema_drift,
+    completeness_ratio, statistical_anomaly, schema_drift, schema_check,
 )
 from dq.connectors import build_connector
 
@@ -55,6 +55,7 @@ _ASSERTION_MAP = {
     "completeness_ratio":    lambda v: completeness_ratio(float(v)),
     "statistical_anomaly":   lambda v: statistical_anomaly(float(v)),
     "schema_drift":          lambda v: schema_drift(int(v)),
+    "schema_check":          lambda v: schema_check(v if isinstance(v, dict) else {}),
 }
 
 
