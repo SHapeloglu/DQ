@@ -151,6 +151,17 @@ def schema_check(expected_columns: dict) -> Callable:
 
     return _check
 
+
+def duplicate_row(threshold: int = 0) -> Callable:
+    """
+    Tekrar eden satır tespiti.
+
+    SQL: SELECT COUNT(*) - COUNT(DISTINCT kolon1, kolon2, ...)  veya
+         SELECT COUNT(*) FROM (SELECT ... GROUP BY ... HAVING COUNT(*)>1)
+    Dönen değer: tekrar eden satır sayısı — threshold'u aşmamalı (genellikle 0).
+    """
+    return lambda v: int(v) <= threshold
+
 # ── Check engine ─────────────────────────────────────────────────────────────
 
 class CheckEngine:

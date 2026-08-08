@@ -353,3 +353,35 @@ class TestSchemaCheck:
         fn = factory({"id": "int"})
         rows = [{"column_name": "id", "data_type": "int"}]
         assert fn(rows) is True
+
+
+class TestDuplicateRow:
+    def test_passes_when_no_duplicates(self):
+        from dq.engine import duplicate_row
+        fn = duplicate_row(0)
+        assert fn(0) is True  # tekrar yok
+
+    def test_fails_when_duplicates_exist(self):
+        from dq.engine import duplicate_row
+        fn = duplicate_row(0)
+        assert fn(5) is False  # 5 tekrar eden satır
+
+    def test_passes_with_threshold(self):
+        from dq.engine import duplicate_row
+        fn = duplicate_row(3)
+        assert fn(3) is True   # tam sınır → geçer
+        assert fn(4) is False  # sınır aşıldı
+
+    def test_default_threshold_is_zero(self):
+        from dq.engine import duplicate_row
+        fn = duplicate_row()
+        assert fn(0) is True
+        assert fn(1) is False
+
+    def test_in_assertion_map(self):
+        from dq.config import _ASSERTION_MAP
+        factory = _ASSERTION_MAP.get("duplicate_row")
+        assert factory is not None
+        fn = factory(0)
+        assert fn(0) is True
+        assert fn(1) is False
