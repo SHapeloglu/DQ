@@ -219,6 +219,94 @@ def zscore_anomaly(metric_name: str, store, max_zscore: float = 3.0, min_samples
         return z <= max_zscore
     return _check
 
+
+def cross_table_check(connector_b, query_b: str, comparator: str = "equals", tolerance: float = 0.0) -> Callable:
+    """
+    İki farklı kaynaktan skaler değer karşılaştırır.
+    connector_b: ikinci kaynağın connector nesnesi
+    query_b:     ikinci kaynakta çalıştırılacak SQL
+    comparator:  equals | less_than | greater_than | within_pct
+    tolerance:   within_pct için yüzde tolerans (ör. 5.0 → %5)
+    Ana sorgu (query_a) CheckEngine üzerinden çalışır; bu assertion value_a alır.
+    """
+    def _check(value_a) -> bool:
+        with connector_b as conn:
+            rows = conn.execute(query_b)
+            if not rows:
+                return False
+            value_b = next(iter(rows[0].values()))
+        a, b = float(value_a), float(value_b)
+        if comparator == "equals":
+            return a == b
+        if comparator == "less_than":
+            return a < b
+        if comparator == "greater_than":
+            return a > b
+        if comparator == "within_pct":
+            if b == 0:
+                return a == 0
+            return abs(a - b) / abs(b) * 100 <= tolerance
+        return False
+    return _check
+
+
+def cross_table_check(connector_b, query_b: str, comparator: str = "equals", tolerance: float = 0.0) -> Callable:
+    """
+    İki farklı kaynaktan skaler değer karşılaştırır.
+    connector_b: ikinci kaynağın connector nesnesi
+    query_b:     ikinci kaynakta çalıştırılacak SQL
+    comparator:  equals | less_than | greater_than | within_pct
+    tolerance:   within_pct için yüzde tolerans (ör. 5.0 -> %5)
+    """
+    def _check(value_a) -> bool:
+        with connector_b as conn:
+            rows = conn.execute(query_b)
+            if not rows:
+                return False
+            value_b = next(iter(rows[0].values()))
+        a, b = float(value_a), float(value_b)
+        if comparator == "equals":
+            return a == b
+        if comparator == "less_than":
+            return a < b
+        if comparator == "greater_than":
+            return a > b
+        if comparator == "within_pct":
+            if b == 0:
+                return a == 0
+            return abs(a - b) / abs(b) * 100 <= tolerance
+        return False
+    return _check
+
+
+def cross_table_check(connector_b, query_b: str, comparator: str = "equals", tolerance: float = 0.0) -> Callable:
+    """
+    İki farklı kaynaktan skaler değer karşılaştırır.
+    connector_b: ikinci kaynağın connector nesnesi
+    query_b:     ikinci kaynakta çalıştırılacak SQL
+    comparator:  equals | less_than | greater_than | within_pct
+    tolerance:   within_pct için yüzde tolerans (ör. 5.0 -> %5)
+    """
+    def _check(value_a) -> bool:
+        with connector_b as conn:
+            rows = conn.execute(query_b)
+            if not rows:
+                return False
+            value_b = next(iter(rows[0].values()))
+        a, b = float(value_a), float(value_b)
+        if comparator == "equals":
+            return a == b
+        if comparator == "less_than":
+            return a < b
+        if comparator == "greater_than":
+            return a > b
+        if comparator == "within_pct":
+            if b == 0:
+                return a == 0
+            return abs(a - b) / abs(b) * 100 <= tolerance
+        return False
+    return _check
+
 # ── Check engine ─────────────────────────────────────────────────────────────
 
 class CheckEngine:
