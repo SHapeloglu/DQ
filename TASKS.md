@@ -1,5 +1,4 @@
 # DQ — Aktif Görevler
-
 ## Tamamlananlar
 - [x] GÖREV 3: MongoConnector
 - [x] GÖREV 4: DB2 Doğrulama
@@ -13,21 +12,14 @@
 - [x] Wizard PII uyarı banner (commit: 9c9738b)
 - [x] KVKK raporu CSV export (commit: 9512c61)
 - [x] profile_column SQL optimizasyonu — distinct + temel istatistik tek sorguda (commit: 9a2eb57)
-
-Test: 108 passed, 3 skipped ✅
+- [x] GÖREV 12: Schema Check — kolon varlığı + tip kontrolü (commit: 654e4be)
+- [x] GÖREV 13: Duplicate Row — tekrar satır tespiti (commit: 6887602)
+- [x] GÖREV 14: Custom SQL assert — eşit/aralık/null kontrol (commit: 28d5c17)
+- [x] GÖREV 15: Volume Anomali — satır sayısı değişim tespiti (commit: 9967e86)
+Test: 136 passed, 3 skipped ✅
 
 ---
-
 ## Backlog — Öncelik Sırasına Göre
-
-### Wizard'a Eklenecekler (Kolay)
-- [ ] GÖREV 12: Schema Check — kolon varlığı + tip kontrolü, yeni assert tipi
-- [ ] GÖREV 13: Duplicate Row — tüm satır tekrarı, yeni assert tipi
-
-### Wizard'a Eklenecekler (Orta)
-- [ ] GÖREV 14: Custom SQL assert — textarea ile SQL yaz, sonuç karşılaştır
-- [ ] GÖREV 15: Volume Anomali — MetricStore geçmişinden satır sayısı değişim tespiti
-
 ### Dashboard / Ayrı Sayfa (Zor)
 - [ ] GÖREV 16: Statistical Anomali — MetricStore + istatistik, health dashboard anomali sekmesi
 - [ ] GÖREV 17: Cross-table Check — iki kaynak çapraz kolon karşılaştırma, ayrı sayfa
@@ -39,14 +31,12 @@ Test: 108 passed, 3 skipped ✅
 - [ ] GÖREV 21: Rule library UI — kural kütüphanesini wizard'da görsel yönetim
 
 ---
-
 ## Ertelenen
 - Docker Secrets / Vault entegrasyonu
 - Airflow connection'ları secure store'dan yükle
 - profile_column: sample + tip bazlı sorguları birleştirme (zor)
 
 ---
-
 ## Sıradaki
-GÖREV 12 (Schema Check) — en kısa, wizard'a kolay eklenir
-GÖREV 15 (Volume Anomali) — anomali tespiti eksiğini kapatır, MetricStore hazır
+GÖREV 16 (Statistical Anomali) — anomali tespiti eksiğini kapatmaya devam eder
+GÖREV 17 (Cross-table Check) — rakiplerle rekabet için kritik
