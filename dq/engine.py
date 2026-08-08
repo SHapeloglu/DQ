@@ -203,6 +203,22 @@ def duplicate_row(threshold: int = 0) -> Callable:
     """
     return lambda v: int(v) <= threshold
 
+
+def zscore_anomaly(metric_name: str, store, max_zscore: float = 3.0, min_samples: int = 5) -> Callable:
+    import math
+    def _check(v) -> bool:
+        values = store.get_recent_values(metric_name, n=100)
+        if len(values) < min_samples:
+            return True
+        mean = sum(values) / len(values)
+        variance = sum((x - mean) ** 2 for x in values) / len(values)
+        std = math.sqrt(variance)
+        if std == 0:
+            return True
+        z = abs(float(v) - mean) / std
+        return z <= max_zscore
+    return _check
+
 # ── Check engine ─────────────────────────────────────────────────────────────
 
 class CheckEngine:

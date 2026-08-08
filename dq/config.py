@@ -37,7 +37,7 @@ from dq.engine import (
     Check,
     less_than, greater_than, between, equals,
     row_count_at_least, row_count_between, is_not_null, referential_integrity,
-    completeness_ratio, statistical_anomaly, schema_drift, schema_check, duplicate_row, custom_sql, volume_anomaly,
+    completeness_ratio, statistical_anomaly, schema_drift, schema_check, duplicate_row, custom_sql, volume_anomaly, zscore_anomaly,
 )
 from dq.connectors import build_connector
 
@@ -59,6 +59,7 @@ _ASSERTION_MAP = {
     "duplicate_row":          lambda v: duplicate_row(int(v) if v is not None else 0),
     "custom_sql":             lambda v: custom_sql(v),
     "volume_anomaly":         lambda v: volume_anomaly(float(v) if v is not None else 50.0),
+    "zscore_anomaly":         lambda v: zscore_anomaly(str(v) if not isinstance(v, str) else v, store=None, max_zscore=3.0),
 }
 
 

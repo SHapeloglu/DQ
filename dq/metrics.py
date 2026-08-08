@@ -169,6 +169,72 @@ class MetricStore:
             )
             return [row[0] for row in cur.fetchall()]
 
+
+    def get_recent_values(self, name: str, n: int = 30) -> list[float]:
+        """Son n ölçümün değerlerini döndürür (eskiden yeniye, None hariç)."""
+        if self.backend == "postgres":
+            with self._pg_conn.cursor() as cur:
+                cur.execute(
+                    "SELECT value FROM dwh_health_log.dq_metrics"
+                    " WHERE name = %s AND value IS NOT NULL"
+                    " ORDER BY run_at DESC LIMIT %s",
+                    (name, n),
+                )
+                rows = [r[0] for r in cur.fetchall()]
+        else:
+            cur = self._conn.execute(
+                "SELECT value FROM metrics"
+                " WHERE name = ? AND value IS NOT NULL"
+                " ORDER BY run_at DESC LIMIT ?",
+                (name, n),
+            )
+            rows = [row[0] for row in cur.fetchall()]
+        return list(reversed(rows))
+
+
+    def get_recent_values(self, name: str, n: int = 30) -> list[float]:
+        """Son n ölçümün değerlerini döndürür (eskiden yeniye, None hariç)."""
+        if self.backend == "postgres":
+            with self._pg_conn.cursor() as cur:
+                cur.execute(
+                    "SELECT value FROM dwh_health_log.dq_metrics"
+                    " WHERE name = %s AND value IS NOT NULL"
+                    " ORDER BY run_at DESC LIMIT %s",
+                    (name, n),
+                )
+                rows = [r[0] for r in cur.fetchall()]
+        else:
+            cur = self._conn.execute(
+                "SELECT value FROM metrics"
+                " WHERE name = ? AND value IS NOT NULL"
+                " ORDER BY run_at DESC LIMIT ?",
+                (name, n),
+            )
+            rows = [row[0] for row in cur.fetchall()]
+        return list(reversed(rows))
+
+
+    def get_recent_values(self, name: str, n: int = 30) -> list[float]:
+        """Son n ölçümün değerlerini döndürür (eskiden yeniye, None hariç)."""
+        if self.backend == "postgres":
+            with self._pg_conn.cursor() as cur:
+                cur.execute(
+                    "SELECT value FROM dwh_health_log.dq_metrics"
+                    " WHERE name = %s AND value IS NOT NULL"
+                    " ORDER BY run_at DESC LIMIT %s",
+                    (name, n),
+                )
+                rows = [r[0] for r in cur.fetchall()]
+        else:
+            cur = self._conn.execute(
+                "SELECT value FROM metrics"
+                " WHERE name = ? AND value IS NOT NULL"
+                " ORDER BY run_at DESC LIMIT ?",
+                (name, n),
+            )
+            rows = [row[0] for row in cur.fetchall()]
+        return list(reversed(rows))
+
     # ── Lifecycle ────────────────────────────────────────────────────────────
 
     def close(self) -> None:
