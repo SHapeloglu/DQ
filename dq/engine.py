@@ -170,6 +170,29 @@ def custom_sql(expected) -> Callable:
         return float(v) == float(expected)
     return _check
 
+
+def volume_anomaly(max_pct_change: float = 50.0, baseline: float | None = None) -> Callable:
+    """
+    Satır sayısı değişim anomalisi.
+
+    SQL: SELECT COUNT(*) FROM tablo
+    Dönen değer mevcut satır sayısı.
+
+    baseline verilmişse: abs(current - baseline) / baseline * 100 <= max_pct_change
+    baseline verilmemişse: değer > 0 ise geçer (ilk ölçüm)
+
+    Örnek: volume_anomaly(max_pct_change=30, baseline=10000)
+    """
+    def _check(v) -> bool:
+        current = float(v)
+        if baseline is None:
+            return current > 0
+        if baseline == 0:
+            return current == 0
+        pct_change = abs(current - baseline) / baseline * 100
+        return pct_change <= max_pct_change
+    return _check
+
 def duplicate_row(threshold: int = 0) -> Callable:
     """
     Tekrar eden satır tespiti.

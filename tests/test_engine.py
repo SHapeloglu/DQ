@@ -428,3 +428,47 @@ class TestCustomSql:
         fn = factory(0)
         assert fn(0) is True
         assert fn(1) is False
+
+
+class TestVolumeAnomaly:
+    def test_passes_when_change_within_threshold(self):
+        from dq.engine import volume_anomaly
+        fn = volume_anomaly(max_pct_change=20.0, baseline=1000)
+        assert fn(1100) is True   # %10 artış → geçer
+
+    def test_fails_when_change_exceeds_threshold(self):
+        from dq.engine import volume_anomaly
+        fn = volume_anomaly(max_pct_change=20.0, baseline=1000)
+        assert fn(1300) is False  # %30 artış → geçmez
+
+    def test_passes_on_decrease_within_threshold(self):
+        from dq.engine import volume_anomaly
+        fn = volume_anomaly(max_pct_change=20.0, baseline=1000)
+        assert fn(900) is True    # %10 azalış → geçer
+
+    def test_fails_on_large_decrease(self):
+        from dq.engine import volume_anomaly
+        fn = volume_anomaly(max_pct_change=20.0, baseline=1000)
+        assert fn(500) is False   # %50 azalış → geçmez
+
+    def test_passes_without_baseline(self):
+        from dq.engine import volume_anomaly
+        fn = volume_anomaly()
+        assert fn(100) is True    # baseline yok, değer > 0 → geçer
+
+    def test_fails_on_zero_without_baseline(self):
+        from dq.engine import volume_anomaly
+        fn = volume_anomaly()
+        assert fn(0) is False     # boş tablo → geçmez
+
+    def test_passes_exact_boundary(self):
+        from dq.engine import volume_anomaly
+        fn = volume_anomaly(max_pct_change=10.0, baseline=1000)
+        assert fn(1100) is True   # tam %10 → geçer
+
+    def test_in_assertion_map(self):
+        from dq.config import _ASSERTION_MAP
+        factory = _ASSERTION_MAP.get("volume_anomaly")
+        assert factory is not None
+        fn = factory(50.0)
+        assert fn(100) is True
