@@ -307,6 +307,31 @@ def cross_table_check(connector_b, query_b: str, comparator: str = "equals", tol
         return False
     return _check
 
+
+def distribution_check(expected_mean: float, expected_std: float, tolerance_pct: float = 10.0) -> Callable:
+    """
+    Kolon dağılımını beklenen ortalama ve standart sapmaya göre kontrol eder.
+    SQL: SELECT AVG(kolon), STDDEV(kolon) FROM tablo  — virgülle ayrılmış iki değer döndürmeli
+         VEYA sadece AVG döndürüyorsa expected_std=None ile sadece ortalama kontrol edilir.
+    Dönen değer: 'avg,std' formatında string veya tek sayısal değer (sadece avg kontrolü).
+    tolerance_pct: izin verilen sapma yüzdesi (ör. 10.0 → %10)
+    """
+    def _check(v) -> bool:
+        if v is None:
+            return False
+        s = str(v)
+        if "," in s:
+            parts = s.split(",")
+            actual_mean = float(parts[0])
+            actual_std = float(parts[1])
+            mean_ok = abs(actual_mean - expected_mean) / (abs(expected_mean) or 1) * 100 <= tolerance_pct
+            std_ok = abs(actual_std - expected_std) / (abs(expected_std) or 1) * 100 <= tolerance_pct
+            return mean_ok and std_ok
+        else:
+            actual_mean = float(s)
+            return abs(actual_mean - expected_mean) / (abs(expected_mean) or 1) * 100 <= tolerance_pct
+    return _check
+
 # ── Check engine ─────────────────────────────────────────────────────────────
 
 class CheckEngine:
