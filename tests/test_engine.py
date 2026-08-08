@@ -385,3 +385,46 @@ class TestDuplicateRow:
         fn = factory(0)
         assert fn(0) is True
         assert fn(1) is False
+
+
+class TestCustomSql:
+    def test_passes_when_value_equals_expected(self):
+        from dq.engine import custom_sql
+        fn = custom_sql(0)
+        assert fn(0) is True
+
+    def test_fails_when_value_not_equal(self):
+        from dq.engine import custom_sql
+        fn = custom_sql(0)
+        assert fn(5) is False
+
+    def test_passes_with_range(self):
+        from dq.engine import custom_sql
+        fn = custom_sql([10, 100])
+        assert fn(50) is True
+        assert fn(10) is True
+        assert fn(100) is True
+
+    def test_fails_outside_range(self):
+        from dq.engine import custom_sql
+        fn = custom_sql([10, 100])
+        assert fn(5) is False
+        assert fn(101) is False
+
+    def test_passes_when_expected_none_and_value_exists(self):
+        from dq.engine import custom_sql
+        fn = custom_sql(None)
+        assert fn(42) is True
+
+    def test_fails_when_expected_none_and_value_is_none(self):
+        from dq.engine import custom_sql
+        fn = custom_sql(None)
+        assert fn(None) is False
+
+    def test_in_assertion_map(self):
+        from dq.config import _ASSERTION_MAP
+        factory = _ASSERTION_MAP.get("custom_sql")
+        assert factory is not None
+        fn = factory(0)
+        assert fn(0) is True
+        assert fn(1) is False

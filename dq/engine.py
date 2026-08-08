@@ -152,6 +152,24 @@ def schema_check(expected_columns: dict) -> Callable:
     return _check
 
 
+
+def custom_sql(expected) -> Callable:
+    """
+    Kullanıcı tanımlı SQL assertion.
+
+    Sorgu skaler bir değer döndürmeli; dönen değer expected ile karşılaştırılır.
+    expected: sayısal eşik (int/float) → dönen değer == expected
+              tuple (low, high) → low <= değer <= high
+              None → değer None değilse geçer
+    """
+    def _check(v) -> bool:
+        if expected is None:
+            return v is not None
+        if isinstance(expected, (list, tuple)) and len(expected) == 2:
+            return float(expected[0]) <= float(v) <= float(expected[1])
+        return float(v) == float(expected)
+    return _check
+
 def duplicate_row(threshold: int = 0) -> Callable:
     """
     Tekrar eden satır tespiti.

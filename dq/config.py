@@ -37,7 +37,7 @@ from dq.engine import (
     Check,
     less_than, greater_than, between, equals,
     row_count_at_least, row_count_between, is_not_null, referential_integrity,
-    completeness_ratio, statistical_anomaly, schema_drift, schema_check, duplicate_row,
+    completeness_ratio, statistical_anomaly, schema_drift, schema_check, duplicate_row, custom_sql,
 )
 from dq.connectors import build_connector
 
@@ -57,6 +57,7 @@ _ASSERTION_MAP = {
     "schema_drift":          lambda v: schema_drift(int(v)),
     "schema_check":          lambda v: schema_check(v if isinstance(v, dict) else {}),
     "duplicate_row":          lambda v: duplicate_row(int(v) if v is not None else 0),
+    "custom_sql":             lambda v: custom_sql(v),
 }
 
 
