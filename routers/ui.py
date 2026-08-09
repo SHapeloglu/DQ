@@ -173,3 +173,7 @@ def rule_library_page(request: Request, msg: str = ""):
         "rules":   rules,
         "msg":     msg,
     })
+
+@router.get("/anomaly", response_class=HTMLResponse)
+def anomaly_page(request: Request):
+    return templates.TemplateResponse("anomaly.html", {"request": request})

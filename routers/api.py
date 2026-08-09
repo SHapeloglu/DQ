@@ -3,7 +3,7 @@ from __future__ import annotations
 import json as _json
 from typing import List, Any, Dict, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from database import get_conn
@@ -439,3 +439,30 @@ def api_rule_library_delete(rule_id: int):
     finally:
         conn.close()
     return RedirectResponse("/rule-library?msg=Pattern+silindi", status_code=303)
+
+@router.get("/api/anomaly-results")
+def api_anomaly_results(source_id=None, limit: int = 200):
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            if source_id:
+                cur.execute("""
+                    SELECT rr.check_name, rr.passed, rr.value_actual, rr.expected,
+                           rr.message, r.run_at, r.source_id
+                    FROM run_results rr JOIN runs r ON rr.run_id = r.id
+                    WHERE r.source_id = %s
+                      AND rr.check_name REGEXP 'anomal|zscore|volume|trend|distribution'
+                    ORDER BY r.run_at DESC LIMIT %s
+                """, (source_id, limit))
+            else:
+                cur.execute("""
+                    SELECT rr.check_name, rr.passed, rr.value_actual, rr.expected,
+                           rr.message, r.run_at, r.source_id
+                    FROM run_results rr JOIN runs r ON rr.run_id = r.id
+                    WHERE rr.check_name REGEXP 'anomal|zscore|volume|trend|distribution'
+                    ORDER BY r.run_at DESC LIMIT %s
+                """, (limit,))
+            rows = cur.fetchall()
+    finally:
+        conn.close()
+    return {"results": rows, "count": len(rows)}
