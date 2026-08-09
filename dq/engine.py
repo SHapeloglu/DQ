@@ -332,6 +332,33 @@ def distribution_check(expected_mean: float, expected_std: float, tolerance_pct:
             return abs(actual_mean - expected_mean) / (abs(expected_mean) or 1) * 100 <= tolerance_pct
     return _check
 
+
+def trend_check(metric_name: str, store, window: int = 7, max_pct_change: float = 20.0, direction: str = "any") -> Callable:
+    """
+    MetricStore geçmişinde trend karşılaştırması.
+    Son `window` ölçüm ortalaması ile önceki `window` ölçüm ortalamasını karşılaştırır.
+    direction: 'any' (her yön), 'up' (artış kötü), 'down' (düşüş kötü)
+    max_pct_change: izin verilen maksimum değişim yüzdesi
+    Yetersiz geçmişte her zaman PASS döner.
+    """
+    def _check(v) -> bool:
+        values = store.get_recent_values(metric_name, n=window * 2)
+        if len(values) < window * 2:
+            return True  # yetersiz geçmiş
+        prev_window = values[:window]
+        curr_window = values[window:]
+        prev_avg = sum(prev_window) / len(prev_window)
+        curr_avg = sum(curr_window) / len(curr_window)
+        if prev_avg == 0:
+            return curr_avg == 0
+        pct_change = (curr_avg - prev_avg) / abs(prev_avg) * 100
+        if direction == "up":
+            return pct_change <= max_pct_change
+        if direction == "down":
+            return pct_change >= -max_pct_change
+        return abs(pct_change) <= max_pct_change
+    return _check
+
 # ── Check engine ─────────────────────────────────────────────────────────────
 
 class CheckEngine:
