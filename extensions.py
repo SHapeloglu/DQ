@@ -275,6 +275,75 @@ class AlertManager:
             return False
 
 
+    def send_summary_report(
+        self,
+        results: list,
+        period: str = "günlük",
+        source_name: str = "",
+    ) -> bool:
+        """
+        Tüm check sonuçlarının özet email raporunu gönderir.
+        period: 'günlük' | 'haftalık'
+        results: [{"check_name": ..., "passed": ..., "value_actual": ..., "expected": ...}]
+        """
+        if not self.email_to or not self.smtp_user:
+            return False
+        total   = len(results)
+        passed  = sum(1 for r in results if r.get("passed", False))
+        failed  = total - passed
+        pct     = round(passed / total * 100, 1) if total else 0
+        now     = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        subject = f"DQ {period.capitalize()} Özet — {source_name or 'Tüm Kaynaklar'} ({pct}% başarı)"
+        rows_html = ""
+        for r in results:
+            name  = r.get("check_name") or r.get("name", "?")
+            val   = r.get("value_actual") or r.get("value", "?")
+            exp   = r.get("expected", "?")
+            ok    = r.get("passed", False)
+            color = "#16a34a" if ok else "#dc2626"
+            icon  = "✓" if ok else "✗"
+            rows_html += (
+                f'<tr><td style="padding:4px 8px;color:{color}">{icon}</td>'
+                f'<td style="padding:4px 8px">{name}</td>'
+                f'<td style="padding:4px 8px">{val}</td>'
+                f'<td style="padding:4px 8px">{exp}</td></tr>'
+            )
+        html_body = f"""
+<html><body style="font-family:sans-serif;max-width:700px;margin:auto">
+<h2>DQ {period.capitalize()} Özet Raporu</h2>
+<p>Kaynak: <b>{source_name or "Tüm"}</b> &nbsp;|&nbsp; Zaman: {now}</p>
+<p>Toplam: {total} &nbsp;|&nbsp;
+   <span style="color:#16a34a">Geçti: {passed}</span> &nbsp;|&nbsp;
+   <span style="color:#dc2626">Başarısız: {failed}</span> &nbsp;|&nbsp;
+   Başarı: <b>{pct}%</b></p>
+<table border="0" cellspacing="0" style="border-collapse:collapse;width:100%">
+<thead><tr style="background:#f3f4f6">
+  <th style="padding:6px 8px;text-align:left">Durum</th>
+  <th style="padding:6px 8px;text-align:left">Check</th>
+  <th style="padding:6px 8px;text-align:left">Değer</th>
+  <th style="padding:6px 8px;text-align:left">Beklenen</th>
+</tr></thead>
+<tbody>{rows_html}</tbody>
+</table>
+<p style="color:#6b7280;font-size:12px;margin-top:24px">DQ — Veri Kalitesi Platformu</p>
+</body></html>"""
+        text_body = f"DQ {period} özet\nKaynak: {source_name}\nGeçti: {passed}/{total} ({pct}%)"
+        try:
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = subject
+            msg["From"]    = self.smtp_user
+            msg["To"]      = self.email_to
+            msg.attach(MIMEText(text_body, "plain", "utf-8"))
+            msg.attach(MIMEText(html_body, "html", "utf-8"))
+            with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+                server.starttls()
+                server.login(self.smtp_user, self.smtp_pass)
+                server.sendmail(self.smtp_user, self.email_to, msg.as_string())
+            return True
+        except Exception as e:
+            print(f"Özet rapor hatası: {e}")
+            return False
+
 # ── AlertManager'ı DB ayarlarından yükle ─────────────────────────────────────
 
 def load_alert_manager(conn) -> AlertManager | None:
