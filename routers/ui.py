@@ -177,3 +177,7 @@ def rule_library_page(request: Request, msg: str = ""):
 @router.get("/anomaly", response_class=HTMLResponse)
 def anomaly_page(request: Request):
     return templates.TemplateResponse("anomaly.html", {"request": request})
+
+@router.get("/cross-table", response_class=HTMLResponse)
+def cross_table_page(request: Request):
+    return templates.TemplateResponse("cross_table.html", {"request": request})
