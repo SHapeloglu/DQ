@@ -390,3 +390,52 @@ def api_pii_report_source(source_id: int):
     finally:
         conn.close()
     return {"source_id": source_id, "pii_columns": rows, "count": len(rows)}
+
+
+# ── Rule Library API ──────────────────────────────────────────────────────────
+
+@router.get("/api/rule-library")
+def api_rule_library_list():
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM rule_library ORDER BY times_used DESC")
+            rows = cur.fetchall()
+    finally:
+        conn.close()
+    return {"rules": rows, "count": len(rows)}
+
+
+@router.post("/api/rule-library")
+async def api_rule_library_create(request: Request):
+    from fastapi.responses import RedirectResponse
+    form = await request.form()
+    pattern   = form.get("column_name_pattern", "").strip()
+    rule_type = form.get("rule_type", "").strip()
+    col_type  = form.get("column_type", "").strip() or None
+    if not pattern or not rule_type:
+        return RedirectResponse("/rule-library?msg=Pattern+ve+kural+tipi+zorunludur", status_code=303)
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT IGNORE INTO rule_library (column_name_pattern, column_type, rule_type)
+                VALUES (%s, %s, %s)
+            """, (pattern, col_type, rule_type))
+        conn.commit()
+    finally:
+        conn.close()
+    return RedirectResponse("/rule-library?msg=Pattern+eklendi", status_code=303)
+
+
+@router.post("/api/rule-library/{rule_id}/delete")
+def api_rule_library_delete(rule_id: int):
+    from fastapi.responses import RedirectResponse
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM rule_library WHERE id = %s", (rule_id,))
+        conn.commit()
+    finally:
+        conn.close()
+    return RedirectResponse("/rule-library?msg=Pattern+silindi", status_code=303)

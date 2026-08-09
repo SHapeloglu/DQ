@@ -149,3 +149,27 @@ def health_dashboard(request: Request):
         "request": request,
         "scores":  scores,
     })
+
+
+# ── Rule Library ─────────────────────────────────────────────────────────────
+
+@router.get("/rule-library", response_class=HTMLResponse)
+def rule_library_page(request: Request, msg: str = ""):
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, column_name_pattern, column_type, rule_type,
+                       rule_definition, times_used, times_accepted, times_rejected,
+                       last_used_at, created_at
+                FROM rule_library
+                ORDER BY times_used DESC, created_at DESC
+            """)
+            rules = cur.fetchall()
+    finally:
+        conn.close()
+    return templates.TemplateResponse("rule_library.html", {
+        "request": request,
+        "rules":   rules,
+        "msg":     msg,
+    })

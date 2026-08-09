@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Kural Kütüphanesi{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>📚 Kural Kütüphanesi</h2>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">
+      + Yeni Pattern
+    </button>
+  </div>
+
+  {% if msg %}
+  <div class="alert alert-success alert-dismissible fade show">{{ msg }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endif %}
+
+  {% if rules %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Pattern</th>
+          <th>Tip</th>
+          <th>Kural</th>
+          <th class="text-center">Kullanım</th>
+          <th class="text-center">Kabul</th>
+          <th class="text-center">Red</th>
+          <th class="text-center">Kabul %</th>
+          <th>Son Kullanım</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rules %}
+        {% set total = r.times_accepted + r.times_rejected %}
+        {% set pct = ((r.times_accepted / total * 100) | round(1)) if total > 0 else 0 %}
+        <tr>
+          <td><code>{{ r.column_name_pattern }}</code></td>
+          <td><span class="badge bg-secondary">{{ r.column_type or "—" }}</span></td>
+          <td><span class="badge bg-info text-dark">{{ r.rule_type }}</span></td>
+          <td class="text-center">{{ r.times_used }}</td>
+          <td class="text-center text-success">{{ r.times_accepted }}</td>
+          <td class="text-center text-danger">{{ r.times_rejected }}</td>
+          <td class="text-center">
+            <div class="progress" style="height:18px;min-width:60px">
+              <div class="progress-bar {% if pct >= 70 %}bg-success{% elif pct >= 40 %}bg-warning{% else %}bg-danger{% endif %}"
+                   style="width:{{ pct }}%">{{ pct }}%</div>
+            </div>
+          </td>
+          <td class="text-muted small">{{ r.last_used_at or "—" }}</td>
+          <td>
+            <form method="post" action="/api/rule-library/{{ r.id }}/delete"
+                  onsubmit="return confirm('Silinsin mi?')">
+              <button class="btn btn-sm btn-outline-danger">Sil</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center text-muted py-5">
+    <p>Henüz kural kütüphanesinde pattern yok.</p>
+    <p>Wizard'ı kullandıkça otomatik birikir veya manuel ekleyebilirsiniz.</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Yeni Pattern Modal -->
+<div class="modal fade" id="addModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" action="/api/rule-library">
+        <div class="modal-header">
+          <h5 class="modal-title">Yeni Kural Pattern</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Kolon Pattern <span class="text-danger">*</span></label>
+            <input name="column_name_pattern" class="form-control" placeholder="ör: *_email, user_id" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Kural Tipi <span class="text-danger">*</span></label>
+            <select name="rule_type" class="form-select" required>
+              <option value="">Seçin...</option>
+              <option>not_empty</option>
+              <option>regex_match</option>
+              <option>accepted_values</option>
+              <option>freshness_hours</option>
+              <option>completeness_ratio</option>
+              <option>row_count_between</option>
+              <option>duplicate_row</option>
+              <option>custom_sql</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Kolon Tipi</label>
+            <input name="column_type" class="form-control" placeholder="ör: varchar, int, datetime">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+          <button type="submit" class="btn btn-primary">Ekle</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

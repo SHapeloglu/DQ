@@ -50,6 +50,10 @@
                         {% if '/health' in request.url.path %}bg-blue-50 text-blue-700{% else %}text-gray-600 hover:text-gray-900 hover:bg-gray-100{% endif %}">
                         Sağlık
                     </a>
+                    <a href="/rule-library" class="px-3 py-2 rounded-md text-sm font-medium
+                        {% if '/rule-library' in request.url.path %}bg-blue-50 text-blue-700{% else %}text-gray-600 hover:text-gray-900 hover:bg-gray-100{% endif %}">
+                        Kural Kütüphanesi
+                    </a>
                     <a href="/import" class="px-3 py-2 rounded-md text-sm font-medium
                         {% if '/import' in request.url.path %}bg-blue-50 text-blue-700{% else %}text-gray-600 hover:text-gray-900 hover:bg-gray-100{% endif %}">
                         TOML Import
