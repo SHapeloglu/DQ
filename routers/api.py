@@ -6,7 +6,7 @@ from typing import List, Any, Dict, Optional
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from database import get_conn
+from database import get_conn, release_conn
 
 router = APIRouter()
 
@@ -24,7 +24,7 @@ def api_get_columns(source_id: int):
             cur.execute("SELECT * FROM sources WHERE id = %s", (source_id,))
             source = cur.fetchone()
     finally:
-        conn.close()
+        release_conn(conn)
 
     if not source:
         raise HTTPException(404, "Kaynak bulunamadı")
@@ -50,11 +50,11 @@ def api_run_profile(source_id: int):
             cur.execute("SELECT * FROM sources WHERE id = %s", (source_id,))
             source = cur.fetchone()
     except Exception as e:
-        conn.close()
+        release_conn(conn)
         raise HTTPException(500, str(e))
 
     if not source:
-        conn.close()
+        release_conn(conn)
         raise HTTPException(404, "Kaynak bulunamadı")
 
     config = _json.loads(source["config"])
@@ -68,7 +68,7 @@ def api_run_profile(source_id: int):
     except Exception as e:
         raise HTTPException(500, str(e))
     finally:
-        conn.close()
+        release_conn(conn)
 
 
 @router.get("/api/profile/{source_id}")
@@ -84,7 +84,7 @@ def api_get_profile(source_id: int):
         from profiler import suggest_rules
         suggestions = suggest_rules(columns, conn) if columns else []
     finally:
-        conn.close()
+        release_conn(conn)
     return {"source_id": source_id, "columns": columns, "suggestions": suggestions}
 
 
@@ -128,7 +128,7 @@ def api_post_run(payload: RunPayload):
                 ))
         conn.commit()
     finally:
-        conn.close()
+        release_conn(conn)
     # Alert gönder (sadece başarısız runlarda, source alert_enabled ise)
     if status == "fail":
         try:
@@ -171,7 +171,7 @@ def api_results(limit: int = 500, passed: Optional[bool] = None):
                 """, (limit,))
             return cur.fetchall()
     finally:
-        conn.close()
+        release_conn(conn)
 
 
 # ── OData ─────────────────────────────────────────────────────────────────────
@@ -189,7 +189,7 @@ def odata_results(top: int = 500, skip: int = 0):
             """, (top, skip))
             rows = cur.fetchall()
     finally:
-        conn.close()
+        release_conn(conn)
     for r in rows:
         r["passed"] = bool(r["passed"])
     return {"@odata.context": "/odata/$metadata#Results", "value": rows}
@@ -214,7 +214,7 @@ def api_score_trend(source_id: int, days: int = 7):
 # ── Business Glossary ─────────────────────────────────────────────────────────
 @router.get("/api/glossary/{source_id}")
 def api_glossary_get(source_id: int):
-    from database import get_conn
+    from database import get_conn, release_conn
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -233,7 +233,7 @@ def api_glossary_update(source_id: int, column_name: str, payload: dict):
         raise HTTPException(400, "Güncellenecek alan yok")
     fields = ", ".join(f"{k}=%s" for k in updates)
     values = list(updates.values()) + [source_id, column_name]
-    from database import get_conn
+    from database import get_conn, release_conn
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(f"""
@@ -253,7 +253,7 @@ def api_alert_settings_get():
             row = cur.fetchone()
         return row or {}
     finally:
-        conn.close()
+        release_conn(conn)
 
 @router.put("/api/alert-settings")
 def api_alert_settings_put(payload: dict):
@@ -276,7 +276,7 @@ def api_alert_settings_put(payload: dict):
                 cur.execute(f"INSERT INTO alert_settings (id, {fields}) VALUES (1, {placeholders})", list(data.values()))
         conn.commit()
     finally:
-        conn.close()
+        release_conn(conn)
     return {"ok": True, "updated": list(data.keys())}
 
 @router.put("/api/sources/{source_id}/alert-enabled")
@@ -288,7 +288,7 @@ def api_source_alert_toggle(source_id: int, payload: dict):
             cur.execute("UPDATE sources SET alert_enabled=%s WHERE id=%s", (enabled, source_id))
         conn.commit()
     finally:
-        conn.close()
+        release_conn(conn)
     return {"ok": True, "source_id": source_id, "alert_enabled": enabled}
 
 # ── PII / KVKK Raporu ─────────────────────────────────────────────────────────
@@ -308,7 +308,7 @@ def api_pii_report():
             """)
             rows = cur.fetchall()
     finally:
-        conn.close()
+        release_conn(conn)
     summary: dict = {}
     for r in rows:
         sname = r["source_name"]
@@ -338,7 +338,7 @@ def api_pii_report_source(source_id: int):
             """, (source_id,))
             rows = cur.fetchall()
     finally:
-        conn.close()
+        release_conn(conn)
     return {"source_id": source_id, "pii_columns": rows, "count": len(rows)}
 
 # ── PII / KVKK Raporu ─────────────────────────────────────────────────────────
@@ -358,7 +358,7 @@ def api_pii_report():
             """)
             rows = cur.fetchall()
     finally:
-        conn.close()
+        release_conn(conn)
     summary: dict = {}
     for r in rows:
         sname = r["source_name"]
@@ -388,7 +388,7 @@ def api_pii_report_source(source_id: int):
             """, (source_id,))
             rows = cur.fetchall()
     finally:
-        conn.close()
+        release_conn(conn)
     return {"source_id": source_id, "pii_columns": rows, "count": len(rows)}
 
 
@@ -402,7 +402,7 @@ def api_rule_library_list():
             cur.execute("SELECT * FROM rule_library ORDER BY times_used DESC")
             rows = cur.fetchall()
     finally:
-        conn.close()
+        release_conn(conn)
     return {"rules": rows, "count": len(rows)}
 
 
@@ -424,7 +424,7 @@ async def api_rule_library_create(request: Request):
             """, (pattern, col_type, rule_type))
         conn.commit()
     finally:
-        conn.close()
+        release_conn(conn)
     return RedirectResponse("/rule-library?msg=Pattern+eklendi", status_code=303)
 
 
@@ -437,7 +437,7 @@ def api_rule_library_delete(rule_id: int):
             cur.execute("DELETE FROM rule_library WHERE id = %s", (rule_id,))
         conn.commit()
     finally:
-        conn.close()
+        release_conn(conn)
     return RedirectResponse("/rule-library?msg=Pattern+silindi", status_code=303)
 
 @router.get("/api/anomaly-results")
@@ -464,7 +464,7 @@ def api_anomaly_results(source_id=None, limit: int = 200):
                 """, (limit,))
             rows = cur.fetchall()
     finally:
-        conn.close()
+        release_conn(conn)
     return {"results": rows, "count": len(rows)}
 
 @router.get("/api/cross-table-results")
@@ -491,7 +491,7 @@ def api_cross_table_results(source_id=None, limit: int = 200):
                 """, (limit,))
             rows = cur.fetchall()
     finally:
-        conn.close()
+        release_conn(conn)
     return {"results": rows, "count": len(rows)}
 
 @router.get("/api/distribution-results")
@@ -518,5 +518,5 @@ def api_distribution_results(source_id=None, limit: int = 200):
                 """, (limit,))
             rows = cur.fetchall()
     finally:
-        conn.close()
+        release_conn(conn)
     return {"results": rows, "count": len(rows)}

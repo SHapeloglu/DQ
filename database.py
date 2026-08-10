@@ -25,9 +25,53 @@ DB_CONFIG = {
 }
 
 
+import threading
+from queue import Queue, Empty
+
+class _DBPool:
+    """Thread-safe MySQL bağlantı havuzu."""
+    def __init__(self, config: dict, size: int = 5):
+        self._config = config
+        self._pool: Queue = Queue(maxsize=size)
+        self._lock = threading.Lock()
+        for _ in range(size):
+            self._pool.put(self._new_conn())
+
+    def _new_conn(self):
+        return pymysql.connect(**self._config)
+
+    def get(self):
+        try:
+            conn = self._pool.get_nowait()
+            conn.ping(reconnect=True)
+            return conn
+        except Empty:
+            return self._new_conn()
+
+    def release(self, conn):
+        try:
+            self._pool.put_nowait(conn)
+        except Exception:
+            conn.close()
+
+_pool: _DBPool | None = None
+_pool_lock = threading.Lock()
+
+def _get_pool() -> _DBPool:
+    global _pool
+    if _pool is None:
+        with _pool_lock:
+            if _pool is None:
+                _pool = _DBPool(DB_CONFIG, size=5)
+    return _pool
+
 def get_conn():
-    """Her request için yeni bağlantı döndürür."""
-    return pymysql.connect(**DB_CONFIG)
+    """Havuzdan bağlantı döndürür; yoksa yeni açar."""
+    return _get_pool().get()
+
+def release_conn(conn):
+    """Bağlantıyı havuza iade eder."""
+    _get_pool().release(conn)
 
 
 def init_db():

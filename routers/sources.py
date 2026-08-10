@@ -6,7 +6,7 @@ from fastapi import APIRouter, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from database import get_conn
+from database import get_conn, release_conn
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -26,7 +26,7 @@ def sources_list(request: Request, msg: str = ""):
             """)
             sources = cur.fetchall()
     finally:
-        conn.close()
+        release_conn(conn)
     return templates.TemplateResponse("sources.html", {
         "request": request, "sources": sources, "msg": msg
     })
@@ -66,7 +66,7 @@ def source_create(
             )
         conn.commit()
     finally:
-        conn.close()
+        release_conn(conn)
 
     return RedirectResponse("/sources?msg=Source+eklendi", status_code=303)
 
@@ -79,7 +79,7 @@ def source_edit(request: Request, source_id: int):
             cur.execute("SELECT * FROM sources WHERE id = %s", (source_id,))
             source = cur.fetchone()
     finally:
-        conn.close()
+        release_conn(conn)
 
     if not source:
         raise HTTPException(404)
@@ -118,7 +118,7 @@ def source_update(
             )
         conn.commit()
     finally:
-        conn.close()
+        release_conn(conn)
 
     return RedirectResponse("/sources?msg=Source+güncellendi", status_code=303)
 
@@ -131,5 +131,5 @@ def source_delete(source_id: int):
             cur.execute("DELETE FROM sources WHERE id = %s", (source_id,))
         conn.commit()
     finally:
-        conn.close()
+        release_conn(conn)
     return RedirectResponse("/sources?msg=Source+silindi", status_code=303)

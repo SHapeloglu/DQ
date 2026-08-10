@@ -5,7 +5,7 @@ from fastapi import APIRouter, Request, UploadFile, File, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from database import get_conn
+from database import get_conn, release_conn
 from toml_import import parse_toml, toml_to_db
 
 router = APIRouter()
@@ -22,7 +22,7 @@ def wizard_page(request: Request, msg: str = ""):
             cur.execute("SELECT id, name, type FROM sources ORDER BY name")
             sources = cur.fetchall()
     finally:
-        conn.close()
+        release_conn(conn)
     return templates.TemplateResponse("wizard.html", {
         "request": request,
         "sources": sources,
@@ -48,7 +48,7 @@ async def import_toml(file: UploadFile = File(...)):
         try:
             result = toml_to_db(raw, conn)
         finally:
-            conn.close()
+            release_conn(conn)
         return RedirectResponse(
             f"/checks?source_id={result['source_id']}&msg="
             f"TOML+import+edildi:+{result['check_count']}+kural+eklendi",
@@ -74,7 +74,7 @@ def runs_list(request: Request):
             """)
             runs = cur.fetchall()
     finally:
-        conn.close()
+        release_conn(conn)
     return templates.TemplateResponse("runs.html", {
         "request": request, "runs": runs
     })
@@ -97,7 +97,7 @@ def run_detail(request: Request, run_id: int):
             )
             results = cur.fetchall()
     finally:
-        conn.close()
+        release_conn(conn)
     if not run:
         raise HTTPException(404)
     return templates.TemplateResponse("run_detail.html", {
@@ -126,7 +126,7 @@ def index(request: Request):
             """)
             recent_runs = cur.fetchall()
     finally:
-        conn.close()
+        release_conn(conn)
     from dq.scoring import get_all_scores
     scores = get_all_scores()
     return templates.TemplateResponse("index.html", {
@@ -167,7 +167,7 @@ def rule_library_page(request: Request, msg: str = ""):
             """)
             rules = cur.fetchall()
     finally:
-        conn.close()
+        release_conn(conn)
     return templates.TemplateResponse("rule_library.html", {
         "request": request,
         "rules":   rules,

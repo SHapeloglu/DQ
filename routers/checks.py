@@ -5,7 +5,7 @@ from fastapi import APIRouter, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from database import get_conn
+from database import get_conn, release_conn
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -33,7 +33,7 @@ def checks_list(request: Request, source_id: int = 0, msg: str = ""):
                 """)
             checks = cur.fetchall()
     finally:
-        conn.close()
+        release_conn(conn)
 
     return templates.TemplateResponse("checks.html", {
         "request":         request,
@@ -52,7 +52,7 @@ def check_new(request: Request, source_id: int = 0):
             cur.execute("SELECT id, name FROM sources ORDER BY name")
             sources = cur.fetchall()
     finally:
-        conn.close()
+        release_conn(conn)
 
     return templates.TemplateResponse("check_form.html", {
         "request": request, "check": None,
@@ -95,7 +95,7 @@ def check_create(
             if pid:
                 record_suggestion_feedback(conn, pid, column_name, rule_type, accepted=True)
     finally:
-        conn.close()
+        release_conn(conn)
     return RedirectResponse("/checks?msg=Kural+eklendi", status_code=303)
 
 
@@ -113,7 +113,7 @@ def reject_suggestion(
     try:
         record_suggestion_feedback(conn, pid, column, rule_type, accepted=False)
     finally:
-        conn.close()
+        release_conn(conn)
     return {"ok": True}
 
 
@@ -127,7 +127,7 @@ def check_edit(request: Request, check_id: int):
             cur.execute("SELECT id, name FROM sources ORDER BY name")
             sources = cur.fetchall()
     finally:
-        conn.close()
+        release_conn(conn)
 
     if not check:
         raise HTTPException(404)
@@ -161,7 +161,7 @@ def check_update(
                   tags, is_active, check_id))
         conn.commit()
     finally:
-        conn.close()
+        release_conn(conn)
     return RedirectResponse("/checks?msg=Kural+güncellendi", status_code=303)
 
 
@@ -173,5 +173,5 @@ def check_delete(check_id: int):
             cur.execute("DELETE FROM checks WHERE id = %s", (check_id,))
         conn.commit()
     finally:
-        conn.close()
+        release_conn(conn)
     return RedirectResponse("/checks?msg=Kural+silindi", status_code=303)
