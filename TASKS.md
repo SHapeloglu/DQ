@@ -32,12 +32,17 @@
 
 ---
 
+- [x] GÖREV 25: secrets_loader.py — Docker Secrets uyumlu secret okuma katmanı
+- [x] GÖREV 26: TOML'da secret: prefix desteği, _resolve_env_vars secrets_loader entegrasyonu
+- [x] GÖREV 27: Thread-safe MySQL connection pool (size=5), release_conn() ile havuz iadesi
+
+**Test: 176 passed, 3 skipped**
+
 ## Backlog
 
-- [ ] GÖREV 25: Docker Secrets / Vault entegrasyonu
-- [ ] GÖREV 26: Airflow connection'ları secure store'dan yükle
-- [ ] GÖREV 27: Ölçeklenebilirlik iyileştirmeleri
 - [ ] profile_column: sample + tip bazlı sorguları birleştirme (zor)
+- [ ] GÖREV 28: Airflow connection'larını Vault/secure store'dan yükle (Swarm geçişinde)
+- [ ] GÖREV 29: profile_column tek sorguda birleştirme (conditional aggregation)
 
 ---
 
