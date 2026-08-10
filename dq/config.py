@@ -99,10 +99,25 @@ class SodaConfig:
     # ── Env variable çözümleyici ──────────────────────────────────────────
     @staticmethod
     def _resolve_env_vars(raw: dict) -> dict:
-        """[source] bloğundaki credentials'ı env variable ile override eder.
-        Kural: DQ_{TYPE}_{FIELD} — örn. DQ_POSTGRES_PASSWORD"""
+        """[source] bloğundaki credentials'ı çözer.
+        Öncelik sırası:
+          1. DQ_{TYPE}_{FIELD} env variable (override)
+          2. TOML'daki 'secret:<KEY>' prefix → secrets_loader.get_secret(KEY)
+          3. TOML'daki değer olduğu gibi kullanılır
+        """
+        try:
+            from secrets_loader import get_secret
+        except ImportError:
+            get_secret = lambda k, d="": os.getenv(k, d)
         src = raw.get("source", {})
         db_type = src.get("type", "").upper()
+        # secret: prefix çözümle
+        for field in ("user", "password", "host", "port", "database"):
+            val = src.get(field)
+            if isinstance(val, str) and val.startswith("secret:"):
+                secret_key = val[len("secret:"):]
+                src[field] = get_secret(secret_key, "")
+        # DQ_{TYPE}_{FIELD} env override (eskiden gelen davranış korunur)
         for field in ("user", "password", "host", "port", "database"):
             env_key = f"DQ_{db_type}_{field.upper()}"
             val = os.getenv(env_key)
