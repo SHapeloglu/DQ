@@ -1,5 +1,17 @@
 {% extends "base.html" %}
-{% block title %}DQ — Genel Bakış{% endblock %}
+{% block title %}DQ — Genel Bakış<div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+    <div class="px-6 py-4 border-b border-gray-100">
+        <h2 class="font-semibold text-gray-900">Analiz Sayfaları</h2>
+    </div>
+    <div class="px-6 py-4 flex flex-wrap gap-3">
+        <a href="/anomaly" class="flex items-center gap-2 bg-purple-50 rounded-lg px-4 py-2 hover:bg-purple-100 transition text-purple-700 font-medium text-sm">🔍 Anomali Dashboard</a>
+        <a href="/cross-table" class="flex items-center gap-2 bg-blue-50 rounded-lg px-4 py-2 hover:bg-blue-100 transition text-blue-700 font-medium text-sm">🔗 Cross-Table Kontroller</a>
+        <a href="/distribution" class="flex items-center gap-2 bg-yellow-50 rounded-lg px-4 py-2 hover:bg-yellow-100 transition text-yellow-700 font-medium text-sm">📊 Distribution Check</a>
+        <a href="/rule-library" class="flex items-center gap-2 bg-green-50 rounded-lg px-4 py-2 hover:bg-green-100 transition text-green-700 font-medium text-sm">📚 Rule Library</a>
+        <a href="/health" class="flex items-center gap-2 bg-gray-50 rounded-lg px-4 py-2 hover:bg-gray-100 transition text-gray-700 font-medium text-sm">❤️ Sağlık Skoru</a>
+    </div>
+</div>
+{% endblock %}
 
 {% block content %}
 <div class="mb-6">
@@ -114,5 +126,27 @@
         <a href="/import" class="text-blue-600 hover:underline text-sm mt-1 block">TOML import ederek başla →</a>
     </div>
     {% endif %}
+</div>
+
+    </div>
+    <div class="px-6 py-4 flex flex-wrap gap-3">
+        <a href="/anomaly" class="flex items-center gap-2 bg-purple-50 rounded-lg px-4 py-2 hover:bg-purple-100 transition text-purple-700 font-medium text-sm">🔍 Anomali Dashboard</a>
+        <a href="/cross-table" class="flex items-center gap-2 bg-blue-50 rounded-lg px-4 py-2 hover:bg-blue-100 transition text-blue-700 font-medium text-sm">🔗 Cross-Table Kontroller</a>
+        <a href="/distribution" class="flex items-center gap-2 bg-yellow-50 rounded-lg px-4 py-2 hover:bg-yellow-100 transition text-yellow-700 font-medium text-sm">📊 Distribution Check</a>
+        <a href="/rule-library" class="flex items-center gap-2 bg-green-50 rounded-lg px-4 py-2 hover:bg-green-100 transition text-green-700 font-medium text-sm">📚 Rule Library</a>
+        <a href="/health" class="flex items-center gap-2 bg-gray-50 rounded-lg px-4 py-2 hover:bg-gray-100 transition text-gray-700 font-medium text-sm">❤️ Sağlık Skoru</a>
+    </div>
+</div>
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+    <div class="px-6 py-4 border-b border-gray-100">
+        <h2 class="font-semibold text-gray-900">Analiz Sayfaları</h2>
+    </div>
+    <div class="px-6 py-4 flex flex-wrap gap-3">
+        <a href="/anomaly" class="flex items-center gap-2 bg-purple-50 rounded-lg px-4 py-2 hover:bg-purple-100 transition text-purple-700 font-medium text-sm">Anomali Dashboard</a>
+        <a href="/cross-table" class="flex items-center gap-2 bg-blue-50 rounded-lg px-4 py-2 hover:bg-blue-100 transition text-blue-700 font-medium text-sm">Cross-Table Kontroller</a>
+        <a href="/distribution" class="flex items-center gap-2 bg-yellow-50 rounded-lg px-4 py-2 hover:bg-yellow-100 transition text-yellow-700 font-medium text-sm">Distribution Check</a>
+        <a href="/rule-library" class="flex items-center gap-2 bg-green-50 rounded-lg px-4 py-2 hover:bg-green-100 transition text-green-700 font-medium text-sm">Rule Library</a>
+        <a href="/health" class="flex items-center gap-2 bg-gray-50 rounded-lg px-4 py-2 hover:bg-gray-100 transition text-gray-700 font-medium text-sm">Saglik Skoru</a>
+    </div>
 </div>
 {% endblock %}
