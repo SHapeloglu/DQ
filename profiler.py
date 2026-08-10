@@ -83,12 +83,19 @@ def profile_column(conn, column: str, table: str = "source") -> dict[str, Any]:
     }
 
     try:
-        # Temel istatistikler + distinct tek sorguda
+        # GOREV 29: tek sorguda tum istatistikler (3 sorgu -> 1)
         rows = conn.execute(f"""
             SELECT
-                COUNT(*) as row_count,
-                COUNT(*) - COUNT("{column}") as null_count,
-                COUNT(DISTINCT "{column}") as dc
+                COUNT(*)                          AS row_count,
+                COUNT(*) - COUNT("{column}")      AS null_count,
+                COUNT(DISTINCT "{column}")        AS dc,
+                MIN(CAST("{column}" AS FLOAT))    AS num_min,
+                MAX(CAST("{column}" AS FLOAT))    AS num_max,
+                AVG(CAST("{column}" AS FLOAT))    AS num_avg,
+                MIN(LENGTH("{column}"))           AS str_min_len,
+                MAX(LENGTH("{column}"))           AS str_max_len,
+                MIN("{column}")                   AS raw_min,
+                MAX("{column}")                   AS raw_max
             FROM {table}
         """)
         if rows:
@@ -101,55 +108,27 @@ def profile_column(conn, column: str, table: str = "source") -> dict[str, Any]:
                 result["null_count"] * 100.0 / total if total > 0 else 0, 2
             )
 
-        # Tip tespiti için örnek değerler
-        sample = conn.execute(
-            f'SELECT "{column}" FROM {table} WHERE "{column}" IS NOT NULL LIMIT 20'
-        )
-        values = [r[column] for r in sample] if sample else []
-        col_type = _detect_type(values)
-        result["type"] = col_type
+            num_avg = r.get("num_avg")
+            str_min = r.get("str_min_len")
 
-        # Tipe göre ek istatistikler
-        if col_type == "numeric":
-            rows = conn.execute(f"""
-                SELECT
-                    MIN(CAST("{column}" AS FLOAT)) as min_val,
-                    MAX(CAST("{column}" AS FLOAT)) as max_val,
-                    AVG(CAST("{column}" AS FLOAT)) as avg_val
-                FROM {table}
-                WHERE "{column}" IS NOT NULL
-            """)
-            if rows:
-                r = rows[0]
-                result["min"] = r.get("min_val")
-                result["max"] = r.get("max_val")
-                result["avg"] = round(float(r.get("avg_val") or 0), 2)
-
-        elif col_type == "string":
-            rows = conn.execute(f"""
-                SELECT
-                    MIN(LENGTH("{column}")) as min_len,
-                    MAX(LENGTH("{column}")) as max_len
-                FROM {table}
-                WHERE "{column}" IS NOT NULL
-            """)
-            if rows:
-                r = rows[0]
-                result["min_length"] = r.get("min_len")
-                result["max_length"] = r.get("max_len")
-
-        elif col_type == "date":
-            rows = conn.execute(f"""
-                SELECT
-                    MIN("{column}") as min_date,
-                    MAX("{column}") as max_date
-                FROM {table}
-                WHERE "{column}" IS NOT NULL
-            """)
-            if rows:
-                r = rows[0]
-                result["min"] = str(r.get("min_date") or "")
-                result["max"] = str(r.get("max_date") or "")
+            if num_avg is not None:
+                col_type = "numeric"
+                result["min"] = r.get("num_min")
+                result["max"] = r.get("num_max")
+                result["avg"] = round(float(num_avg), 2)
+            elif str_min is not None:
+                raw_min = str(r.get("raw_min") or "")
+                if len(raw_min) >= 8 and ("-" in raw_min or "/" in raw_min or ":" in raw_min):
+                    col_type = "date"
+                    result["min"] = raw_min
+                    result["max"] = str(r.get("raw_max") or "")
+                else:
+                    col_type = "string"
+                    result["min_length"] = r.get("str_min_len")
+                    result["max_length"] = r.get("str_max_len")
+            else:
+                col_type = "unknown"
+            result["type"] = col_type
 
     except Exception as e:
         result["error"] = str(e)
