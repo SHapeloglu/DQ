@@ -181,3 +181,7 @@ def anomaly_page(request: Request):
 @router.get("/cross-table", response_class=HTMLResponse)
 def cross_table_page(request: Request):
     return templates.TemplateResponse("cross_table.html", {"request": request})
+
+@router.get("/distribution", response_class=HTMLResponse)
+def distribution_page(request: Request):
+    return templates.TemplateResponse("distribution.html", {"request": request})

@@ -493,3 +493,30 @@ def api_cross_table_results(source_id=None, limit: int = 200):
     finally:
         conn.close()
     return {"results": rows, "count": len(rows)}
+
+@router.get("/api/distribution-results")
+def api_distribution_results(source_id=None, limit: int = 200):
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            if source_id:
+                cur.execute("""
+                    SELECT rr.check_name, rr.passed, rr.value_actual, rr.expected,
+                           rr.message, r.run_at, r.source_id
+                    FROM run_results rr JOIN runs r ON rr.run_id = r.id
+                    WHERE r.source_id = %s
+                      AND rr.check_name REGEXP 'distrib'
+                    ORDER BY r.run_at DESC LIMIT %s
+                """, (source_id, limit))
+            else:
+                cur.execute("""
+                    SELECT rr.check_name, rr.passed, rr.value_actual, rr.expected,
+                           rr.message, r.run_at, r.source_id
+                    FROM run_results rr JOIN runs r ON rr.run_id = r.id
+                    WHERE rr.check_name REGEXP 'distrib'
+                    ORDER BY r.run_at DESC LIMIT %s
+                """, (limit,))
+            rows = cur.fetchall()
+    finally:
+        conn.close()
+    return {"results": rows, "count": len(rows)}
