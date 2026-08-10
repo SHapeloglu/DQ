@@ -10,15 +10,16 @@ import os
 import pymysql
 import pymysql.cursors
 from dotenv import load_dotenv
+from secrets_loader import get_secret
 
 load_dotenv()
 
 DB_CONFIG = {
-    "host":     os.getenv("DB_HOST", "localhost"),
-    "port":     int(os.getenv("DB_PORT", 3306)),
-    "user":     os.getenv("DB_USER", "root"),
-    "password": os.getenv("DB_PASSWORD", "root"),
-    "db":       os.getenv("DB_NAME", "dq"),
+    "host":     get_secret("DB_HOST", "localhost"),
+    "port":     int(get_secret("DB_PORT", "3306")),
+    "user":     get_secret("DB_USER", "root"),
+    "password": get_secret("DB_PASSWORD", "root"),
+    "db":       get_secret("DB_NAME", "dq"),
     "charset":  "utf8mb4",
     "cursorclass": pymysql.cursors.DictCursor,
 }
