@@ -102,6 +102,12 @@
                 <button onclick="selectChip(this,'cross_table')" class="chip px-3 py-1.5 rounded-full text-sm border border-gray-200 text-gray-600 hover:bg-gray-50" data-label="Çapraz tablo karşılaştırma iki tablo fark">Çapraz tablo</button>
                 <button onclick="selectChip(this,'custom')" class="chip px-3 py-1.5 rounded-full text-sm border border-gray-200 text-gray-600 hover:bg-gray-50" data-label="Özel SQL custom">Özel SQL</button>
             </div>
+            <!-- Anomali / Trend kontrolleri -->
+            <p class="text-xs text-gray-400 font-medium mb-2 mt-3">ANOMALİ / TREND</p>
+            <div class="flex flex-wrap gap-2">
+                <button onclick="selectChip(this,'volume_anomaly')" class="chip px-3 py-1.5 rounded-full text-sm border border-gray-200 text-gray-600 hover:bg-gray-50" data-label="Hacim anomali satır sayısı değişim volume">Hacim anomalisi</button>
+                <button onclick="selectChip(this,'zscore_anomaly')" class="chip px-3 py-1.5 rounded-full text-sm border border-gray-200 text-gray-600 hover:bg-gray-50" data-label="Geçmiş anomali istatistik zscore holt winters trend">Geçmişe dayalı anomali</button>
+            </div>
         </div>
 
         <!-- 3. Parametreler -->
@@ -399,6 +405,32 @@
                 <input type="text" id="cross-tag" value="critical" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
             </div>
 
+            <!-- Hacim anomalisi -->
+            <div id="p-volume_anomaly" class="hidden space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-xs text-gray-500 mb-1">Baseline (beklenen satır sayısı)</label>
+                    <input type="number" id="vol-baseline" value="1000" min="1" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                    <div><label class="block text-xs text-gray-500 mb-1">Maks. sapma (%)</label>
+                    <input type="number" id="vol-maxpct" value="20" min="1" max="100" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                </div>
+                <div><label class="block text-xs text-gray-500 mb-1">Etiket</label>
+                <input type="text" id="vol-tag" value="anomaly" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+            </div>
+            <!-- Geçmişe dayalı anomali (zscore / Holt-Winters) -->
+            <div id="p-zscore_anomaly" class="hidden space-y-3">
+                <div><label class="block text-xs text-gray-500 mb-1">Metrik adı (MetricStore'daki geçmiş)</label>
+                <input type="text" id="zscore-metric" value="row_count" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                <div><label class="block text-xs text-gray-500 mb-1">SQL (skaler değer döndürmeli)</label>
+                <textarea id="zscore-sql" rows="3" onchange="update()" placeholder="SELECT COUNT(*) FROM tablo"
+                          class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea></div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-xs text-gray-500 mb-1">Maks. z-score (varsayılan: 3)</label>
+                    <input type="number" id="zscore-max" value="3" min="1" step="0.5" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                    <div><label class="block text-xs text-gray-500 mb-1">Etiket</label>
+                    <input type="text" id="zscore-tag" value="anomaly" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                </div>
+                <p class="text-xs text-gray-400">Yeterli geçmiş varsa (≥8 gözlem) Holt-Winters, aksi halde z-score kullanılır.</p>
+            </div>
             <!-- Özel SQL -->
             <div id="p-custom" class="hidden space-y-3">
                 <div><label class="block text-xs text-gray-500 mb-1">Kural adı</label>
@@ -539,6 +571,10 @@ WHERE a.${fk} IS NOT NULL AND b.${rc} IS NULL`; }
         case 'cross_table':{ const ta=getVal('cross-tbl-a'),tb=getVal('cross-tbl-b'),k=getVal('cross-key'); return `SELECT COUNT(*)
 FROM ${ta} a LEFT JOIN ${tb} b ON a.${k}=b.${k}
 WHERE b.${k} IS NULL`; }
+        case 'volume_anomaly':{ return `SELECT COUNT(*)
+FROM ${tbl}`; }
+        case 'zscore_anomaly':{ return getVal('zscore-sql')||`SELECT COUNT(*)
+FROM ${tbl}`; }
         case 'custom':{ return getVal('custom-sql')||'-- SQL yazın'; }
     }
 }
@@ -566,6 +602,8 @@ function buildTOML(){
         case 'date_format':{ const col=getVal('col-dfmt'),tag=getVal('dfmt-tag'); return `[[checks]]\nname   = "${col} tarih formatı geçerli"\nquery  = ${q}\nassert = "equals"\nvalue  = 0\ntags   = ["${tag}"]`; }
         case 'reference':{ const fk=getVal('ref-fk'),rt=getVal('ref-tbl'),tag=getVal('ref-tag'); return `[[checks]]\nname   = "${fk} referans bütünlüğü"\nquery  = ${q}\nassert = "equals"\nvalue  = 0\ntags   = ["${tag}"]`; }
         case 'cross_table':{ const ta=getVal('cross-tbl-a'),tb=getVal('cross-tbl-b'),tag=getVal('cross-tag'); return `[[checks]]\nname   = "${ta} vs ${tb} eşleşmeli"\nquery  = ${q}\nassert = "equals"\nvalue  = 0\ntags   = ["${tag}"]`; }
+        case 'volume_anomaly':{ const bl=getVal('vol-baseline'),mp=getVal('vol-maxpct'),tag=getVal('vol-tag'); return `[[checks]]\nname   = "Hacim anomalisi (baseline=${bl}, maks=%${mp})"\nquery  = ${q}\nassert = "volume_anomaly"\nvalue  = ${mp}\ntags   = ["${tag}"]`; }
+        case 'zscore_anomaly':{ const m=getVal('zscore-metric'),mz=getVal('zscore-max'),tag=getVal('zscore-tag'); return `[[checks]]\nname   = "${m} geçmişe dayalı anomali"\nquery  = ${q}\nassert = "zscore_anomaly"\nvalue  = "${m}"\ntags   = ["${tag}"]`; }
         case 'custom':{ const name=getVal('custom-name'),a=getVal('custom-assert'),v=getVal('custom-val'),tag=getVal('custom-tag'); return `[[checks]]\nname   = "${name}"\nquery  = ${q}\nassert = "${a}"\nvalue  = ${v}\ntags   = ["${tag}"]`; }
     }
 }
@@ -592,7 +630,7 @@ function selectChip(el, type){
     el.classList.add('active','bg-blue-50','border-blue-200','text-blue-700');
     el.classList.remove('border-gray-200','text-gray-600');
     currentType = type;
-    ['null','rowcount','range','duplicate','freshness','ratio','negative','stddev','sum_match','regex','email','phone','empty_string','value_set','date_order','date_range','date_format','reference','cross_table','custom'].forEach(t=>{
+    ['null','rowcount','range','duplicate','freshness','ratio','negative','stddev','sum_match','regex','email','phone','empty_string','value_set','date_order','date_range','date_format','reference','cross_table','custom','volume_anomaly','zscore_anomaly'].forEach(t=>{
         const el = document.getElementById('p-'+t);
         if(t===type){ el.classList.remove('hidden'); }
         else { el.classList.add('hidden'); }
