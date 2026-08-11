@@ -40,6 +40,14 @@ from dq.engine import (
     completeness_ratio, statistical_anomaly, schema_drift, schema_check, duplicate_row, custom_sql, volume_anomaly, zscore_anomaly,
 )
 from dq.connectors import build_connector
+from dq.metrics import MetricStore
+from secrets_loader import get_secret
+
+def _get_metric_store() -> MetricStore:
+    dsn = get_secret("METRICS_PG_DSN")
+    if dsn:
+        return MetricStore(backend="postgres", dsn=dsn)
+    return MetricStore()
 
 
 # Desteklenen assertion adları → fabrika fonksiyonları
@@ -59,7 +67,7 @@ _ASSERTION_MAP = {
     "duplicate_row":          lambda v: duplicate_row(int(v) if v is not None else 0),
     "custom_sql":             lambda v: custom_sql(v),
     "volume_anomaly":         lambda v: volume_anomaly(float(v) if v is not None else 50.0),
-    "zscore_anomaly":         lambda v: zscore_anomaly(str(v) if not isinstance(v, str) else v, store=None, max_zscore=3.0),
+    "zscore_anomaly":         lambda v: zscore_anomaly(str(v) if not isinstance(v, str) else v, store=_get_metric_store(), max_zscore=3.0),
 }
 
 
