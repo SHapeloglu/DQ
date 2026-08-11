@@ -37,6 +37,9 @@ from airflow.utils.decorators import apply_defaults
 from dq.contracts import load_contract, ContractValidator
 from dq.config import SodaConfig
 from dq.engine import CheckEngine
+from dq.anomaly import AnomalyDetector
+from dq.metrics import MetricStore
+from secrets_loader import get_secret
 
 
 class DQOperator(BaseOperator):
@@ -134,7 +137,27 @@ class DQOperator(BaseOperator):
                           if any(t in c.tags for t in self.tags)]
             engine = CheckEngine(connector)
             engine.add_many(checks)
-            return engine.run()
+            results = engine.run()
+
+            # ── Anomali tespiti (MetricStore geçmişine dayalı) ────────────────
+            try:
+                dsn = get_secret("METRICS_PG_DSN")
+                store = MetricStore(backend="postgres", dsn=dsn) if dsn else MetricStore()
+                detector = AnomalyDetector(store, threshold=3.0, history_days=30)
+                anomaly_results = detector.detect_all(results)
+                failed_anomalies = [a for a in anomaly_results if a.is_anomaly]
+                if failed_anomalies:
+                    self.log.warning(
+                        "Anomali tespiti: %d anormal metrik bulundu",
+                        len(failed_anomalies),
+                    )
+                    for a in failed_anomalies:
+                        self.log.warning("  ANOMALY: %s — skor=%.2f, yöntem=%s, mesaj=%s",
+                                         a.metric_name, a.score, a.method, a.message)
+            except Exception as exc:
+                self.log.warning("AnomalyDetector çalıştırılamadı: %s", exc)
+
+            return results
     def _log_results(self, results) -> None:
         for r in results:
             name   = getattr(r, "name", None) or getattr(r, "metric_name", "?")
