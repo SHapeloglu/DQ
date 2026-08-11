@@ -65,12 +65,14 @@
             <th>Durum</th>
             <th>Gerçek Değer</th>
             <th>Beklenen</th>
+            <th>Yöntem</th>
+            <th>Skor</th>
             <th>Mesaj</th>
             <th>Çalışma Zamanı</th>
           </tr>
         </thead>
         <tbody id="tableBody">
-          <tr><td colspan="6" class="text-center text-muted py-3">Yükleniyor…</td></tr>
+          <tr><td colspan="8" class="text-center text-muted py-3">Yükleniyor…</td></tr>
         </tbody>
       </table>
     </div>
@@ -116,19 +118,28 @@ function filterTable() {
 function renderTable(rows) {
   const tbody = document.getElementById('tableBody');
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Kayıt bulunamadı</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">Kayıt bulunamadı</td></tr>';
     return;
   }
-  tbody.innerHTML = rows.map(r => `
+  tbody.innerHTML = rows.map(r => {
+    const msg = r.message ?? '';
+    const method = msg.includes('tahmin=') ? '<span class="badge bg-info text-dark">Holt-Winters</span>'
+                 : msg.includes('z=')      ? '<span class="badge bg-secondary">Z-score</span>'
+                 : '-';
+    const scoreMatch = msg.match(/(?:z|norm_score)=([0-9.]+)/);
+    const score = scoreMatch ? `<span class="fw-bold">${scoreMatch[1]}</span>` : '-';
+    return `
     <tr>
       <td><span class="badge badge-anomaly text-white">${r.check_name}</span></td>
       <td class="${r.passed ? 'passed' : 'failed'}">${r.passed ? '✅ OK' : '❌ FAIL'}</td>
       <td>${r.value_actual ?? '-'}</td>
       <td>${r.expected ?? '-'}</td>
-      <td class="text-muted small">${r.message ?? ''}</td>
+      <td>${method}</td>
+      <td>${score}</td>
+      <td class="text-muted small">${msg}</td>
       <td class="text-muted small">${r.run_at ?? ''}</td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
 }
 
 function renderCharts(rows) {
