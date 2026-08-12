@@ -9,25 +9,24 @@ Commit dili: Türkçe, format: `feat: GOREV N — açıklama`
 ---
 
 ## Çalışma Kuralları
-
 - Sadece değişen fonksiyon/blok yaz — tüm dosyayı yeniden yazma
 - HTML template istenmeden eklenmez
 - Açıklama max 3 satır, kod önce gelir
 - Bir komut ver, çıktıyı bekle, sonra devam et
 - Her görev sonrası commit at
+- Rakip karşılaştırmalarında: Soda, GX, Google Dataplex, AWS Glue Data Quality
 
 ---
 
 ## Dosya Düzenleme Hiyerarşisi
-
-1. `cat > /tmp/fix.py << 'EOF'` ile script yaz, sonra `python3 /tmp/fix.py`
-2. `cat >>` ile append (sessiz çalışır, tail ile kontrol et)
-3. `sed` kullanma — güvenilmez
+1. `python3 - << 'PYEOF'` ile inline Python script (tercih edilen)
+2. `cat > /tmp/fix.py << 'EOF'` ile script yaz, sonra `python3 /tmp/fix.py`
+3. `cat >>` ile append (sessiz çalışır, tail ile kontrol et)
+4. `sed` kullanma — güvenilmez
 
 ---
 
 ## Yeni Endpoint Ekleme Paterni
-
 1. `routers/api.py` → GET endpoint ekle (source_id=None, limit: int = 200)
 2. `routers/ui.py` → HTML route ekle (request: Request — tip hint zorunlu)
 3. `templates/xxx.html` → Bootstrap 5 + Chart.js template
@@ -38,7 +37,6 @@ Commit dili: Türkçe, format: `feat: GOREV N — açıklama`
 ---
 
 ## Yeni Assert Tipi Ekleme Paterni
-
 1. `dq/engine.py` → fonksiyon yaz (CheckEngine sınıfından önce)
 2. `dq/config.py` → import satırına ekle (~satır 40)
 3. `dq/config.py` → `_ASSERTION_MAP` dict'ine lambda ekle (~satır 46-60)
@@ -74,12 +72,29 @@ Commit dili: Türkçe, format: `feat: GOREV N — açıklama`
 - DSN: `postgresql://dquser:dqpass@host.docker.internal:5432/dqmetrics`
 - Şema: `dwh_health_log.dq_metrics`
 
+### Anomali Tespiti
+- `dq/anomaly.py` → AnomalyDetector: n<8 z-score, n>=8 Holt-Winters (statsmodels)
+- `dq/airflow.py` → DQOperator._run_checks() sonrası AnomalyDetector.detect_all() çağrılır
+- `dq/config.py` → _get_metric_store(): METRICS_PG_DSN varsa Postgres, yoksa SQLite
+- Sonuçlar şu an sadece Airflow log'una yazılıyor (GÖREV 34: DB'ye yazma bekliyor)
+
+### Secrets
+- `secrets/files/` → Docker secrets dosya mount (chmod 600, gitignore)
+- `secrets_loader.get_secret(key)` → /run/secrets/ → env → default
+- TOML'da: `password = "secret:DB_PASSWORD"`
+
 ---
 
-## Session Sonu Kontrol Listesi
+## Oturum Yönetimi Protokolü
+Her 10-15 mesajda veya büyük görev bitişinde Claude şunu değerlendirir:
+- Token birikmesi var mı?
+- Yeni konu açılıyor mu?
+- Oturumu kapatma zamanı geldi mi?
 
-1. `python3 -m pytest tests/ -q` → test sayısını teyit et
-2. 4 MD dosyasını güncelle
+### Session Sonu Kontrol Listesi
+1. `pytest tests/ -q` → test sayısını teyit et
+2. 4 MD dosyasını güncelle (SESSION_START, CLAUDE, ARCHITECTURE, TASKS)
 3. `git add -A && git commit -m "docs: session sonu MD güncellemesi"`
 4. `git push origin main`
-5. MD dosyalarını zip'le, indir
+5. `cd /opt/dq && zip -r dq_session.zip dq_docker/*.md`
+6. MD dosyalarını indir → `C:\Users\yeliz\Desktop\CLAUDE\DQ\.claude\`
