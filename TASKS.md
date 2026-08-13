@@ -14,11 +14,11 @@
 - [x] GÖREV 34: AnomalyResult'ları run_results DB'ye yaz (to_check_dict + airflow._serialize)
 - [x] GÖREV 35: run_detail.html anomali badge'i ([zscore]/[holt_winters] → sarı uyarı ikonu)
 - [x] GÖREV 36: Wizard'a schema_drift + schema_check chip/panel/query/TOML eklendi
+- [x] GÖREV 37: Alert'lerde anomali/kural ayrımı (ANOMALİ ⚠ + KURAL HATASI ✗ bölümleri)
 **Test: 191 passed, 3 skipped**
 
 ---
 ## Backlog (öncelik sırasıyla)
-- [ ] GÖREV 37: Alert — Anomali tespitinde Slack/email gönder (extensions.py + airflow.py)
 - [ ] GÖREV 38: Airflow connection'larını secrets_loader ile yükle (DAG'larda hardcoded DSN temizliği)
 - [ ] GÖREV 39: ML anomali tespiti iyileştirme — isolation forest veya EWMA
 - [ ] GÖREV 40: Ölçeklenebilirlik iyileştirmesi — CheckEngine.run() ThreadPoolExecutor (4/10 → hedef 6/10)
@@ -26,7 +26,7 @@
 ---
 ## Rakip Karşılaştırma (Güncel)
 - **Güçlü**: PII/KVKK (9/10), maliyet (10/10), sağlık skoru (8/10), wizard UX (8/10)
-- **Anomali tespiti**: 6/10 (Holt-Winters + zscore, MetricStore + run_results entegrasyonu)
+- **Anomali tespiti**: 6/10 (Holt-Winters + zscore, MetricStore + run_results + alert entegrasyonu)
 - **Zayıf**: ölçeklenebilirlik (4/10)
 - **Rakipler**: Soda Core, Great Expectations, Google Dataplex, AWS Glue Data Quality
 - **Tahmini genel puan**: ~7.8/10 (backlog tamamlanırsa ~8.5/10)
