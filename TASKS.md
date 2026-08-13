@@ -17,21 +17,22 @@
 - [x] GÖREV 37: Alert'lerde anomali/kural ayrımı (ANOMALİ ⚠ + KURAL HATASI ✗ bölümleri)
 - [x] GÖREV 38: Airflow DSN kontrolü — get_secret() zaten kullanılıyor, hardcoded DSN yok
 - [x] GÖREV 39: EWMA anomali yöntemi — <5 zscore, 5-13 ewma, >=14 holt_winters
+- [x] GÖREV 40: CheckEngine.run() ThreadPoolExecutor — max_workers=4, Lock ile thread-safe
 **Test: 191 passed, 3 skipped**
 
 ---
 ## Backlog (öncelik sırasıyla)
-- [ ] GÖREV 40: Ölçeklenebilirlik — CheckEngine.run() ThreadPoolExecutor (4/10 → hedef 6/10)
 - [ ] GÖREV 41: run_detail.html badge'ine [ewma] desteği ekle (şu an sadece zscore/holt_winters)
 - [ ] GÖREV 42: Anomali dashboard'una yöntem filtresi (zscore / ewma / holt_winters)
+- [ ] GÖREV 43: row_condition assert tipi — Dataplex gap'ini kapat (custom_sql wrapper)
 
 ---
 ## Rakip Karşılaştırma (Güncel)
 - **Güçlü**: PII/KVKK (9/10), maliyet (10/10), sağlık skoru (8/10), wizard UX (8/10)
 - **Anomali tespiti**: 7/10 (zscore + EWMA + Holt-Winters, otomatik yöntem seçimi)
-- **Zayıf**: ölçeklenebilirlik (4/10)
+- **Ölçeklenebilirlik**: 6/10 (ThreadPoolExecutor, max 4 paralel check)
 - **Rakipler**: Soda Core, Great Expectations, Google Dataplex, AWS Glue Data Quality
-- **Tahmini genel puan**: ~8.0/10 (backlog tamamlanırsa ~8.5/10)
+- **Tahmini genel puan**: ~8.2/10
 
 ---
 ## Pazar Geri Bildirimi
