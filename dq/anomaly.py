@@ -83,6 +83,41 @@ def _zscore_detect(name: str, current: float, hist: list[float],
     )
 
 
+
+def _ewma_detect(name: str, current: float, hist: list[float],
+                 threshold: float, alpha: float = 0.3) -> AnomalyResult:
+    """
+    EWMA (Exponentially Weighted Moving Average) anomali tespiti.
+    5-13 veri noktası için idealdir — trend'e duyarlı, hafif.
+    alpha: düzleştirme faktörü (0<alpha<1, küçük=uzun hafıza)
+    """
+    if len(hist) < 2:
+        return AnomalyResult(name, current, False, 0.0, "ewma",
+                             message="Yeterli geçmiş veri yok (< 2)")
+    # EWMA hesapla
+    ewma = hist[0]
+    sq_errors = []
+    for val in hist[1:]:
+        ewma = alpha * val + (1 - alpha) * ewma
+        sq_errors.append((val - ewma) ** 2)
+    # EWMA std (eksponansiyel ağırlıklı)
+    ewma_std = (sum(sq_errors) / len(sq_errors)) ** 0.5 or 1e-9
+    forecast = ewma
+    error = abs(current - forecast)
+    norm_score = error / ewma_std
+    lower = forecast - threshold * ewma_std
+    upper = forecast + threshold * ewma_std
+    return AnomalyResult(
+        metric_name  = name,
+        current      = current,
+        is_anomaly   = norm_score > threshold,
+        score        = round(norm_score, 4),
+        method       = "ewma",
+        lower_bound  = round(lower, 4),
+        upper_bound  = round(upper, 4),
+        message      = f"tahmin={forecast:.2f}, hata={error:.2f}, alpha={alpha}",
+    )
+
 # ── Yöntem 2: Holt-Winters (yeterli veri için) ───────────────────────────────
 
 def _holt_winters_detect(name: str, current: float, hist: list[float],
@@ -163,9 +198,16 @@ class AnomalyDetector:
                                  message="Mevcut değer None")
 
         # Yöntem seçimi: veri miktarına göre otomatik
-        if len(hist_vals) >= 8:
+        # < 5  → zscore  (basit, az veri)
+        # 5-13 → ewma    (trend duyarlı, orta veri)
+        # >=14 → holt_winters (mevsimsel, çok veri)
+        n = len(hist_vals)
+        if n >= 14:
             return _holt_winters_detect(metric_name, current_value,
                                         hist_vals, self.threshold)
+        elif n >= 5:
+            return _ewma_detect(metric_name, current_value,
+                                hist_vals, self.threshold)
         else:
             return _zscore_detect(metric_name, current_value,
                                   hist_vals, self.threshold)
