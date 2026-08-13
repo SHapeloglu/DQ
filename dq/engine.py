@@ -338,11 +338,19 @@ class CheckEngine:
         if tags:
             targets = [c for c in targets if any(t in c.tags for t in tags)]
 
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        import threading
+        lock = threading.Lock()
         results = []
         with self.connector as conn:
-            for check in targets:
-                result = self._run_one(conn, check)
-                results.append(result)
+            def _run_safe(check):
+                with lock:
+                    return self._run_one(conn, check)
+            max_workers = min(4, len(targets)) if targets else 1
+            with ThreadPoolExecutor(max_workers=max_workers) as pool:
+                futures = {pool.submit(_run_safe, c): c for c in targets}
+                for fut in as_completed(futures):
+                    results.append(fut.result())
         return results
 
     def _run_one(self, conn, check: Check) -> CheckResult:
