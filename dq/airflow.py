@@ -156,8 +156,8 @@ class DQOperator(BaseOperator):
                                          a.metric_name, a.score, a.method, a.message)
             except Exception as exc:
                 self.log.warning("AnomalyDetector çalıştırılamadı: %s", exc)
-
-            return results
+                anomaly_results = []
+            return results + anomaly_results
     def _log_results(self, results) -> None:
         for r in results:
             name   = getattr(r, "name", None) or getattr(r, "metric_name", "?")
@@ -174,14 +174,18 @@ class DQOperator(BaseOperator):
         from datetime import datetime, timezone
         from dataclasses import asdict
 
+        from dq.anomaly import AnomalyResult as _AR
         items = []
         for r in results:
-            try:
-                d = asdict(r)
-            except Exception:
-                d = r.__dict__.copy()
-            # callable alanları temizle (assertion fonksiyonu vs)
-            d = {k: v for k, v in d.items() if not callable(v)}
+            if isinstance(r, _AR):
+                d = r.to_check_dict()
+            else:
+                try:
+                    d = asdict(r)
+                except Exception:
+                    d = r.__dict__.copy()
+                d = {k: v for k, v in d.items() if not callable(v)}
+            items.append(d)
             items.append(d)
 
         return {

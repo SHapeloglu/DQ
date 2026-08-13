@@ -35,6 +35,21 @@ class AnomalyResult:
         return "ANOMALY" if self.is_anomaly else "OK"
 
 
+    def to_check_dict(self) -> dict:
+        """run_results tablosuna yazilabilecek dict dondurur."""
+        lo = self.lower_bound
+        hi = self.upper_bound
+        expected_str = (
+            f"{lo} - {hi}" if lo is not None and hi is not None else "-"
+        )
+        return {
+            "name":     self.metric_name,
+            "passed":   not self.is_anomaly,
+            "value":    self.current,
+            "expected": expected_str,
+            "message":  f"[{self.method}] skor={self.score} {self.message}",
+        }
+
 # ── Yardımcı: geçmiş değerleri listele ───────────────────────────────────────
 
 def _values(history: list[dict]) -> list[float]:
