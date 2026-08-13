@@ -190,12 +190,24 @@ class AlertManager:
             f"Başarısız: {len(failed)} check",
             "",
         ]
-        for r in failed:
-            name = r.get("check_name") or r.get("name", "?")
-            val  = r.get("value_actual") or r.get("value", "?")
-            exp  = r.get("expected", "?")
-            lines.append(f"  ✗ {name}")
-            lines.append(f"    Değer: {val} | Beklenen: {exp}")
+        anomalies = [r for r in failed if r.get("message","") and
+                     ("[zscore]" in r.get("message","") or "[holt_winters]" in r.get("message",""))]
+        rules      = [r for r in failed if r not in anomalies]
+        if anomalies:
+            lines.append(f"  🔴 ANOMALİ ({len(anomalies)} metrik):")
+            for r in anomalies:
+                name = r.get("check_name") or r.get("name", "?")
+                msg  = r.get("message", "")
+                lines.append(f"    ⚠ {name}")
+                lines.append(f"      {msg}")
+        if rules:
+            lines.append(f"  ❌ KURAL HATASI ({len(rules)} check):")
+            for r in rules:
+                name = r.get("check_name") or r.get("name", "?")
+                val  = r.get("value_actual") or r.get("value", "?")
+                exp  = r.get("expected", "?")
+                lines.append(f"    ✗ {name}")
+                lines.append(f"      Değer: {val} | Beklenen: {exp}")
         return "\n".join(lines)
 
     def _send_slack(self, summary: str, failed: list) -> bool:
