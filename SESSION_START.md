@@ -103,7 +103,7 @@ Wizard → kural DB'ye yazılır → Airflow DQOperator → CheckEngine.run()
 ---
 
 ## Test Durumu
-**194 passed, 3 skipped ✅**
+**196 passed, 3 skipped ✅**
 
 ---
 
