@@ -14,7 +14,7 @@ Stack: FastAPI + MySQL 8.0 + Airflow + Docker Compose
   completeness_ratio, statistical_anomaly, schema_drift, schema_check,
   duplicate_row, custom_sql, volume_anomaly, zscore_anomaly, row_condition
 - `dq/config.py` → SodaConfig + _resolve_env_vars() + _ASSERTION_MAP (19 entry) + _get_metric_store() ✅
-- `dq/anomaly.py` → AnomalyDetector (z-score + EWMA + Holt-Winters otomatik seçim) ✅
+- `dq/anomaly.py` → AnomalyDetector (z-score + EWMA + Holt-Winters otomatik seçim) + **trend yönü** ✅
 - `dq/connectors.py` → BaseConnector + 8 veritabanı tipi
 - `dq/metrics.py` → MetricStore (SQLite dev + Postgres prod)
 - `dq/scoring.py` → get_health_score(), get_score_trend(), get_all_scores()
@@ -33,7 +33,7 @@ Stack: FastAPI + MySQL 8.0 + Airflow + Docker Compose
 
 - `routers/sources.py` → /sources CRUD
 - `routers/checks.py` → /checks CRUD + /api/suggestions/reject
-- `routers/api.py` → /api/* + /odata + alerting + health-score + glossary + pii-report + alert-settings + rule-library + anomaly-results + cross-table-results + distribution-results
+- `routers/api.py` → /api/* + /odata + alerting + health-score + glossary + pii-report + alert-settings + rule-library + anomaly-results + cross-table-results + distribution-results + profile-export
 - `routers/ui.py` → /wizard, /import, /runs, /health, /rule-library, /anomaly, /cross-table, /distribution, /
 
 ---
@@ -42,7 +42,7 @@ Stack: FastAPI + MySQL 8.0 + Airflow + Docker Compose
 
 - `/` → Ana sayfa (kaynak özeti + son run'lar)
 - `/health` → Sağlık Skoru Dashboard
-- `/anomaly` → Anomali Dashboard (Yöntem/Skor sütunları + **yöntem filtresi**)
+- `/anomaly` → Anomali Dashboard (Yöntem/Skor/Trend sütunları + **trend badge ↑/→/↓**)
 - `/cross-table` → Cross-Table Kontroller
 - `/distribution` → Distribution Check görsel grafik
 - `/rule-library` → Rule Library
@@ -54,7 +54,7 @@ Stack: FastAPI + MySQL 8.0 + Airflow + Docker Compose
 
 ## Anomali Tespiti Zinciri (uçtan uca)
 Wizard → kural DB'ye yazılır → Airflow DQOperator → CheckEngine.run()
-→ AnomalyDetector.detect_all() (z-score / EWMA / Holt-Winters) → Airflow log + uyarı
+→ AnomalyDetector.detect_all() (z-score / EWMA / Holt-Winters + trend yönü) → Airflow log + uyarı
 → run_results tablosu → /anomaly dashboard
 
 ---
@@ -62,8 +62,10 @@ Wizard → kural DB'ye yazılır → Airflow DQOperator → CheckEngine.run()
 ## Kritik Notlar
 
 - `row_condition` assert tipi: Dataplex gap kapandı
+- **Anomali trend yönü:** _detect_trend() → up (artan), stable (sabit), down (azalan)
+- Trend badge dashboard'da: ↑ (yeşil), → (gri), ↓ (kırmızı)
 - Anomali yöntem filtresi: zscore / ewma / holt_winters
-- run_detail.html: [ewma] badge desteği eklendi
+- run_detail.html: [ewma] badge desteği
 - `from __future__ import annotations` + Pydantic çakışması:
   api.py ve ui.py'de fonksiyon parametrelerine tip hint yazarken dikkat.
   api.py'de `Request` import zorunlu.
@@ -109,21 +111,19 @@ Wizard → kural DB'ye yazılır → Airflow DQOperator → CheckEngine.run()
 
 ## Git Son Commitler (bu oturum)
 
-1734b0a feat: GOREV 43 — row_condition assert tipi (Dataplex gap)
-02693f9 feat: GOREV 42 — anomali dashboard yontem filtresi (zscore/ewma/holt_winters)
-76829c6 feat: GOREV 41 — run_detail ewma badge destegi eklendi
+01a5a97 feat: GOREV 44 — Anomali trend yönü analizi (up/stable/down)
 
 ---
 
 ## Rekabet Konumu (güncel)
-Genel: 6.7/10 → backlog tamamlanırsa ~8.3/10
-Güçlü: PII/KVKK (9/10), maliyet (10/10), sağlık skoru (8/10), wizard UX (8/10)
-Anomali tespiti: 7/10 (zscore + EWMA + Holt-Winters)
+Genel: 6.7/10 → ~8.3/10 (GÖREV 46-48 ve GÖREV 44 tamamlandı)
+Güçlü: PII/KVKK (9/10), maliyet (10/10), sağlık skoru (8/10), wizard UX (8/10), anomali trend (8.5/10)
+Anomali tespiti: 8.5/10 (zscore + EWMA + Holt-Winters + trend yönü)
 Ölçeklenebilirlik: 6/10 (ThreadPoolExecutor, max 4 paralel check)
 Rakipler: Soda Core, Great Expectations, Google Dataplex, AWS Glue Data Quality
 
 ---
 
 ## Sonraki Session'da Yap
-1. SESSION_START.md + CLAUDE.md + ARCHITECTURE.md + TASKS.md zip'le, yükle
-2. GÖREV 44/45/47 backlog'dan seçin
+1. GÖREV 45/47 backlog'dan seçin
+2. SESSION_START.md + CLAUDE.md + ARCHITECTURE.md + TASKS.md sync'le
