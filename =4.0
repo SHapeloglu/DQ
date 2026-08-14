@@ -1,0 +1,2 @@
+Requirement already satisfied: pymongo in /opt/fretflow/venv/lib/python3.12/site-packages (4.17.0)
+Requirement already satisfied: dnspython<3.0.0,>=2.6.1 in /opt/fretflow/venv/lib/python3.12/site-packages (from pymongo) (2.8.0)

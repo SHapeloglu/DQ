@@ -126,7 +126,4 @@ Rakipler: Soda Core, Great Expectations, Google Dataplex, AWS Glue Data Quality
 
 ## Sonraki Session'da Yap
 1. SESSION_START.md + CLAUDE.md + ARCHITECTURE.md + TASKS.md zip'le, yükle
-2. Sıradaki görevler: Backlog temiz! Yeni feature'lar veya optimizasyonlar:
-   - Anomali tespitinde trend analizi iyileştirmesi
-   - Ölçeklenebilirlik: read replica desteği
-   - Dataplex vs benchmark raporlaması
+2. GÖREV 44/45/47 backlog'dan seçin
