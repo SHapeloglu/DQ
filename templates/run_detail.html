@@ -60,7 +60,7 @@
                 <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ r.check_name }}</td>
                 <td class="px-6 py-4">
                     <span class="flex items-center gap-1.5">
-                        {% set is_anomaly = r.message and ('[zscore]' in r.message or '[holt_winters]' in r.message) %}
+                        {% set is_anomaly = r.message and ('[zscore]' in r.message or '[holt_winters]' in r.message or '[ewma]' in r.message) %}
                         {% if r.passed and not is_anomaly %}
                         <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
