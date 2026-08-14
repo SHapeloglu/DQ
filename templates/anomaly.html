@@ -32,6 +32,14 @@
         <option value="passed">Sadece Başarılı</option>
       </select>
     </div>
+    <div class="col-md-2">
+      <select id="methodFilter" class="form-select" onchange="filterTable()">
+        <option value="">Tüm Yöntemler</option>
+        <option value="holt_winters">Holt-Winters</option>
+        <option value="ewma">EWMA</option>
+        <option value="zscore">Z-score</option>
+      </select>
+    </div>
     <div class="col-md-2 ms-auto text-end">
       <span id="summary" class="text-muted small"></span>
     </div>
@@ -107,9 +115,14 @@ async function loadData() {
 
 function filterTable() {
   const f = document.getElementById('statusFilter').value;
+  const m = document.getElementById('methodFilter').value;
   const filtered = allRows.filter(r => {
-    if (f === 'failed') return !r.passed;
-    if (f === 'passed') return r.passed;
+    if (f === 'failed' && r.passed) return false;
+    if (f === 'passed' && !r.passed) return false;
+    const msg = r.message ?? '';
+    if (m === 'holt_winters' && !msg.includes('tahmin=')) return false;
+    if (m === 'ewma' && !msg.includes('[ewma]')) return false;
+    if (m === 'zscore' && (!msg.includes('z=') || msg.includes('tahmin=') || msg.includes('[ewma]'))) return false;
     return true;
   });
   renderTable(filtered);
@@ -123,8 +136,9 @@ function renderTable(rows) {
   }
   tbody.innerHTML = rows.map(r => {
     const msg = r.message ?? '';
-    const method = msg.includes('tahmin=') ? '<span class="badge bg-info text-dark">Holt-Winters</span>'
-                 : msg.includes('z=')      ? '<span class="badge bg-secondary">Z-score</span>'
+    const method = msg.includes('tahmin=')  ? '<span class="badge bg-info text-dark">Holt-Winters</span>'
+                 : msg.includes('[ewma]') ? '<span class="badge bg-warning text-dark">EWMA</span>'
+                 : msg.includes('z=')     ? '<span class="badge bg-secondary">Z-score</span>'
                  : '-';
     const scoreMatch = msg.match(/(?:z|norm_score)=([0-9.]+)/);
     const score = scoreMatch ? `<span class="fw-bold">${scoreMatch[1]}</span>` : '-';
