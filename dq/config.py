@@ -34,6 +34,7 @@ from pathlib import Path
 from typing import Any
 
 from dq.engine import (
+    row_condition,
     Check,
     less_than, greater_than, between, equals,
     row_count_at_least, row_count_between, is_not_null, referential_integrity,
@@ -66,6 +67,7 @@ _ASSERTION_MAP = {
     "schema_check":          lambda v: schema_check(v if isinstance(v, dict) else {}),
     "duplicate_row":          lambda v: duplicate_row(int(v) if v is not None else 0),
     "custom_sql":             lambda v: custom_sql(v),
+    "row_condition":          lambda v: row_condition(str(v)),
     "volume_anomaly":         lambda v: volume_anomaly(float(v) if v is not None else 50.0),
     "zscore_anomaly":         lambda v: zscore_anomaly(str(v) if not isinstance(v, str) else v, store=_get_metric_store(), max_zscore=3.0),
 }

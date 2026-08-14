@@ -193,6 +193,15 @@ def volume_anomaly(max_pct_change: float = 50.0, baseline: float | None = None) 
         return pct_change <= max_pct_change
     return _check
 
+
+def row_condition(condition: str) -> Callable:
+    """
+    Belirtilen WHERE koşulunu sağlamayan satır sayısını döner.
+    SQL: SELECT COUNT(*) FROM {tablo} WHERE NOT ({condition})
+    Dönen değer: 0 olmalı (hiç ihlal yoksa geçer).
+    Not: query alanına WHERE filtresi dahil SQL yazılır; assert_value koşul stringidir.
+    """
+    return lambda v: int(v) == 0
 def duplicate_row(threshold: int = 0) -> Callable:
     """
     Tekrar eden satır tespiti.

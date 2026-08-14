@@ -472,3 +472,19 @@ class TestVolumeAnomaly:
         assert factory is not None
         fn = factory(50.0)
         assert fn(100) is True
+
+class TestRowCondition:
+    def test_passes_when_no_violations(self):
+        from dq.engine import row_condition
+        fn = row_condition("age > 0 AND age < 150")
+        assert fn(0) is True   # ihlal yok → geçer
+    def test_fails_when_violations_exist(self):
+        from dq.engine import row_condition
+        fn = row_condition("age > 0 AND age < 150")
+        assert fn(5) is False  # 5 satır ihlal → geçmez
+    def test_in_assertion_map(self):
+        from dq.config import _ASSERTION_MAP
+        factory = _ASSERTION_MAP.get("row_condition")
+        assert factory is not None
+        fn = factory("status IN ('active', 'pending')")
+        assert fn(0) is True
