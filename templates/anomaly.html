@@ -140,6 +140,12 @@ function renderTable(rows) {
                  : msg.includes('[ewma]') ? '<span class="badge bg-warning text-dark">EWMA</span>'
                  : msg.includes('z=')     ? '<span class="badge bg-secondary">Z-score</span>'
                  : '-';
+    const trendMatch = msg.match(/trend=(\w+)/);
+    const trend = trendMatch ? trendMatch[1] : 'stable';
+    const trendBadge = trend === 'up' ? '<span class="badge bg-success ms-1">↑</span>'
+                     : trend === 'down' ? '<span class="badge bg-danger ms-1">↓</span>'
+                     : '<span class="badge bg-secondary ms-1">→</span>';
+    const methodWithTrend = method === '-' ? '-' : method + trendBadge;
     const scoreMatch = msg.match(/(?:z|norm_score)=([0-9.]+)/);
     const score = scoreMatch ? `<span class="fw-bold">${scoreMatch[1]}</span>` : '-';
     return `
@@ -148,7 +154,7 @@ function renderTable(rows) {
       <td class="${r.passed ? 'passed' : 'failed'}">${r.passed ? '✅ OK' : '❌ FAIL'}</td>
       <td>${r.value_actual ?? '-'}</td>
       <td>${r.expected ?? '-'}</td>
-      <td>${method}</td>
+      <td>${methodWithTrend}</td>
       <td>${score}</td>
       <td class="text-muted small">${msg}</td>
       <td class="text-muted small">${r.run_at ?? ''}</td>

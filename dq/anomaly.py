@@ -28,6 +28,7 @@ class AnomalyResult:
     method:       str            # "zscore" | "holt_winters"
     lower_bound:  float | None = None
     upper_bound:  float | None = None
+    trend_direction: str = "stable"  # "up", "stable", "down"
     message:      str = ""
 
     @property
@@ -47,7 +48,7 @@ class AnomalyResult:
             "passed":   not self.is_anomaly,
             "value":    self.current,
             "expected": expected_str,
-            "message":  f"[{self.method}] skor={self.score} {self.message}",
+            "message":  f"[{self.method}] trend={self.trend_direction} skor={self.score} {self.message}",
         }
 
 # ── Yardımcı: geçmiş değerleri listele ───────────────────────────────────────
@@ -55,6 +56,35 @@ class AnomalyResult:
 def _values(history: list[dict]) -> list[float]:
     return [h["value"] for h in history if h["value"] is not None]
 
+
+
+# ── Yardımcı: Trend yönü belirle ────────────────────────────────────────────
+
+def _detect_trend(hist: list[float]) -> str:
+    """
+    Son N değerin eğilimini belirle: artan/sabit/azalan
+    En az 4 değer lazım (2+2 karşılaştırma için)
+    """
+    if len(hist) < 4:
+        return "stable"
+    
+    # Son 3 değer vs. ondan önceki 3 değer
+    mid = len(hist) // 2
+    if mid < 2:
+        mid = 2
+    
+    recent_avg  = sum(hist[-mid:]) / mid
+    earlier_avg = sum(hist[:mid]) / mid
+    
+    # %5 tolerans
+    pct_change = (recent_avg - earlier_avg) / (earlier_avg or 1e-9)
+    
+    if pct_change > 0.05:
+        return "up"
+    elif pct_change < -0.05:
+        return "down"
+    else:
+        return "stable"
 
 # ── Yöntem 1: Z-score (az veri için) ─────────────────────────────────────────
 
@@ -80,6 +110,7 @@ def _zscore_detect(name: str, current: float, hist: list[float],
         lower_bound  = round(lower, 4),
         upper_bound  = round(upper, 4),
         message      = f"z={z:.2f}, eşik={threshold}",
+    trend_direction = _detect_trend(hist),
     )
 
 
@@ -116,6 +147,7 @@ def _ewma_detect(name: str, current: float, hist: list[float],
         lower_bound  = round(lower, 4),
         upper_bound  = round(upper, 4),
         message      = f"tahmin={forecast:.2f}, hata={error:.2f}, alpha={alpha}",
+    trend_direction = _detect_trend(hist),
     )
 
 # ── Yöntem 2: Holt-Winters (yeterli veri için) ───────────────────────────────
@@ -160,7 +192,8 @@ def _holt_winters_detect(name: str, current: float, hist: list[float],
             lower_bound  = round(lower, 4),
             upper_bound  = round(upper, 4),
             message      = f"tahmin={forecast:.2f}, hata={error:.2f}, eşik={threshold}",
-        )
+        trend_direction = _detect_trend(hist_vals),
+    )
 
     except ImportError:
         # statsmodels yoksa z-score'a geri dön
