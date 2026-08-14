@@ -62,13 +62,14 @@ class MetricStore:
         backend: Literal["sqlite", "postgres"] = "sqlite",
         db_path: str | Path = "dq_metrics.db",
         dsn: str | None = None,
+        read_replica_dsn: str | None = None,
     ) -> None:
         self.backend = backend
 
         if backend == "postgres":
             if not dsn:
                 raise ValueError("Postgres backend için dsn zorunludur.")
-            self._init_postgres(dsn)
+            self._init_postgres(dsn, read_replica_dsn)
         else:
             self._init_sqlite(db_path)
 
@@ -80,13 +81,14 @@ class MetricStore:
         self._conn.commit()
         self._pg_conn = None
 
-    def _init_postgres(self, dsn: str) -> None:
+    def _init_postgres(self, dsn: str, read_replica_dsn: str | None = None) -> None:
         try:
             import psycopg2
             import psycopg2.extras
         except ImportError:
             raise ImportError("pip install psycopg2-binary")
         self._pg_conn = psycopg2.connect(dsn)
+        self._pg_conn_read = psycopg2.connect(read_replica_dsn) if read_replica_dsn else self._pg_conn
         self._conn = None
         with self._pg_conn.cursor() as cur:
             cur.execute(_PG_DDL)
@@ -140,7 +142,7 @@ class MetricStore:
         """Son N günün kayıtlarını döndürür (eskiden yeniye)."""
         since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
         if self.backend == "postgres":
-            with self._pg_conn.cursor() as cur:
+            with self._pg_conn_read.cursor() as cur:
                 cur.execute(
                     "SELECT run_at, value FROM dwh_health_log.dq_metrics"
                     " WHERE name = %s AND run_at >= %s ORDER BY run_at ASC",
@@ -158,7 +160,7 @@ class MetricStore:
     def known_metrics(self) -> list[str]:
         """Tüm benzersiz metrik isimlerini döndürür."""
         if self.backend == "postgres":
-            with self._pg_conn.cursor() as cur:
+            with self._pg_conn_read.cursor() as cur:
                 cur.execute(
                     "SELECT DISTINCT name FROM dwh_health_log.dq_metrics ORDER BY name"
                 )
@@ -173,7 +175,7 @@ class MetricStore:
     def get_recent_values(self, name: str, n: int = 30) -> list[float]:
         """Son n ölçümün değerlerini döndürür (eskiden yeniye, None hariç)."""
         if self.backend == "postgres":
-            with self._pg_conn.cursor() as cur:
+            with self._pg_conn_read.cursor() as cur:
                 cur.execute(
                     "SELECT value FROM dwh_health_log.dq_metrics"
                     " WHERE name = %s AND value IS NOT NULL"
@@ -195,7 +197,7 @@ class MetricStore:
     def get_recent_values(self, name: str, n: int = 30) -> list[float]:
         """Son n ölçümün değerlerini döndürür (eskiden yeniye, None hariç)."""
         if self.backend == "postgres":
-            with self._pg_conn.cursor() as cur:
+            with self._pg_conn_read.cursor() as cur:
                 cur.execute(
                     "SELECT value FROM dwh_health_log.dq_metrics"
                     " WHERE name = %s AND value IS NOT NULL"
@@ -217,7 +219,7 @@ class MetricStore:
     def get_recent_values(self, name: str, n: int = 30) -> list[float]:
         """Son n ölçümün değerlerini döndürür (eskiden yeniye, None hariç)."""
         if self.backend == "postgres":
-            with self._pg_conn.cursor() as cur:
+            with self._pg_conn_read.cursor() as cur:
                 cur.execute(
                     "SELECT value FROM dwh_health_log.dq_metrics"
                     " WHERE name = %s AND value IS NOT NULL"
