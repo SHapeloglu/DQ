@@ -1,6 +1,6 @@
 # CLAUDE.md — İşbirliği Notları
 
-## Bu Oturum Özeti (GÖREV 44-45)
+## Bu Oturum Özeti (GÖREV 44-45-47)
 
 ### GÖREV 44: Anomali Trend Yönü Analizi ✅
 - **Dosya**: dq/anomaly.py
@@ -10,6 +10,12 @@
 ### GÖREV 45: Read Replica Desteği (MetricStore) ✅
 - **Dosya**: dq/metrics.py
 - **Yenilik**: read_replica_dsn parametresi, write→primary, read→replica
+- **Status**: 196 passed, 3 skipped ✅
+
+### GÖREV 47: Custom Assertion Script Upload ✅
+- **Dosya**: dq/engine.py (custom_script_assertion), dq/config.py (_ASSERTION_MAP), routers/scripts.py (/scripts CRUD + /api/scripts/test)
+- **Yenilik**: AST security validation (os, subprocess vb. yasaklı), kısıtlı __builtins__, DB'den script yükleme
+- **Templates**: scripts.html (liste) + script_form.html (editör + test alanı)
 - **Status**: 196 passed, 3 skipped ✅
 
 ### Önceki GÖREV'ler (Session 1-3)
@@ -36,10 +42,13 @@
 79a5173 feat: GOREV 48 — Data profiling export (CSV/JSON)
 
 ## Backlog Kalan
-- GÖREV 47: Custom assertion script upload (L)
+Boş — tüm core feature'lar tamamlandı
 
 ## Başarılı Patterns
 ✅ _detect_trend() — %5 tolerans, minimal
 ✅ Read-write split: psycopg2 native
 ✅ Backward compatibility: read_replica_dsn optional
 ✅ Trend badge: regex pattern match
+✅ AST-based code security — exec() kısıtlı __builtins__ ile
+✅ DB-backed custom functions — script_id → config.py helper
+✅ Dry-run test endpoint (/api/scripts/test) — live validation

@@ -125,6 +125,17 @@ Rakipler: Soda Core, Great Expectations, Google Dataplex, AWS Glue Data Quality
 
 ---
 
+## Tamamlanan (Bu Oturum)
+- ✅ GÖREV 44: Anomali trend yönü analizi (up/stable/down)
+- ✅ GÖREV 45: Read replica desteği (MetricStore)
+- ✅ GÖREV 47: Custom assertion script upload
+  * `custom_scripts` tablosu (DB)
+  * `custom_script_assertion(code, function_name)` AST validation ile
+  * `_ASSERTION_MAP["custom_script"]` entegrasyonu
+  * `/scripts` CRUD + `/api/scripts/test` endpoint'i
+  * `templates/scripts.html` + `templates/script_form.html`
+
 ## Sonraki Session'da Yap
-1. GÖREV 47: Custom assertion script upload (L)
-2. docs/ sync'le
+1. Wizard'a custom script entegrasyonu (chip kategorisi: ÖZEL/SCRIPT)
+2. Benchmarking ve final Polish
+3. docs/ sync'le

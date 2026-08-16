@@ -19,6 +19,13 @@
 3. dq/config.py → _ASSERTION_MAP dict'ine lambda ekle (satır ~46-58)
 4. tests/test_engine.py → TestXxx sınıfı + test_in_assertion_map testi yaz
 
+### custom_script_assertion Detayı
+- **İmza**: custom_script_assertion(code: str, function_name: str = "check") — AST validation ile güvenlik kontrol eder
+- **AST Validation**: os, subprocess, sys, shutil, pathlib, socket, urllib, requests import'ları reddeder; eval, exec, compile, __import__, open, input, print fonksiyonları yasaklı
+- **Execution**: Kısıtlı __builtins__ (len, str, int, float, bool, abs, min, max, isinstance, math vb.) ile exec() çalıştırır
+- **DB Entegrasyonu**: config.py'daki `_get_custom_script_fn(script_id)` → custom_scripts tablosundan kod yükle
+- **Dönen değer**: Assertion fonksiyonu (value → bool)
+
 ### schema_check Detayı
 - İmza: schema_check(expected_columns: dict) — kolon varlığı + tip kontrolü
 - SQL: SELECT column_name, data_type FROM information_schema.columns WHERE table_name=... AND table_schema=...

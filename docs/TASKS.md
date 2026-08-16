@@ -3,6 +3,7 @@
 ## Tamamlananlar (Bu Oturum)
 - [x] GÖREV 44: Anomali trend yönü analizi (up/stable/down)
 - [x] GÖREV 45: Read replica desteği (MetricStore)
+- [x] GÖREV 47: Custom assertion script upload (AST validation + API)
 
 ## Tamamlananlar (Önceki Oturumlar)
 - [x] GÖREV 1-43: Temel motor, connectors, UI, alerting, PII, wizard, anomali
@@ -14,7 +15,7 @@
 ---
 
 ## Backlog
-- [ ] GÖREV 47: Custom assertion script upload (L)
+Boş
 
 ---
 
