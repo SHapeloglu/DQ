@@ -1,6 +1,6 @@
 # DQ-main vs Rakipler — Benchmark Raporu
 
-**Tarih:** Ağustos 2026 | **DQ-main Versiyonu:** v1.0 (194 test) | **Pazar:** Açık kaynak + self-hosted
+**Tarih:** Ağustos 2026 | **DQ-main Versiyonu:** v1.0 (196 test, 3 skipped) | **Pazar:** Açık kaynak + self-hosted
 
 ---
 
@@ -39,8 +39,10 @@
 | EWMA (Exponential) | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Holt-Winters | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Otomatik Seçim (n<8→z, n<14→ewma, n>=14→hw) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Trend Yönü (↑/→/↓, %5 tolerans) | ✅ | ❌ | ❌ | ❌ | ❌ |
 | ML-based DetectAnomalies | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Yöntem Filtresi UI | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Read Replica (metrik okuma ayrımı) | ✅ | ❌ | ❌ | ❌ | ❌ |
 
 **Sonuç:** DQ-main + AWS Glue yan yana. DQ-main: istatistiksel rigor. Glue: ML blackbox.
 
