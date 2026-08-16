@@ -312,6 +312,83 @@ def trend_check(metric_name: str, store, window: int = 7, max_pct_change: float 
         return abs(pct_change) <= max_pct_change
     return _check
 
+
+def custom_script_assertion(code: str, function_name: str = "check"):
+    """
+    Kullanıcı tarafından yüklenen custom Python assertion.
+    
+    AST ile güvenlik kontrolü: os, subprocess, sys, open, eval, exec vb. import'ları reddeder.
+    Kısıtlı __builtins__ (len, str, int, float, bool, abs, min, max, isinstance vb.) ile çalışır.
+    """
+    import ast
+    import math
+    
+    # ── AST validation ──────────────────────────────────────────────────────
+    try:
+        tree = ast.parse(code)
+    except SyntaxError as e:
+        raise ValueError(f"Syntax hatası: {e}")
+    
+    # Tehlikeli imports ve fonksiyonlar
+    FORBIDDEN_IMPORTS = {"os", "subprocess", "sys", "shutil", "pathlib", "socket", "urllib", "requests"}
+    FORBIDDEN_NAMES = {"eval", "exec", "compile", "__import__", "open", "input", "print"}
+    
+    for node in ast.walk(tree):
+        # Import kontrolleri
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                module = alias.name.split('.')[0]
+                if module in FORBIDDEN_IMPORTS:
+                    raise ValueError(f"Yasaklı import: {module}")
+        
+        if isinstance(node, ast.ImportFrom):
+            module = node.module.split('.')[0] if node.module else ""
+            if module in FORBIDDEN_IMPORTS:
+                raise ValueError(f"Yasaklı import: {module}")
+        
+        # Function call kontrolleri
+        if isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name):
+                if node.func.id in FORBIDDEN_NAMES:
+                    raise ValueError(f"Yasaklı fonksiyon: {node.func.id}")
+    
+    # ── Güvenli execution ───────────────────────────────────────────────────
+    safe_builtins = {
+        'len': len, 'str': str, 'int': int, 'float': float, 'bool': bool,
+        'abs': abs, 'min': min, 'max': max, 'sum': sum, 'round': round,
+        'isinstance': isinstance, 'type': type, 'range': range,
+        'list': list, 'dict': dict, 'set': set, 'tuple': tuple,
+        'sorted': sorted, 'reversed': reversed, 'enumerate': enumerate,
+        'zip': zip, 'map': map, 'filter': filter, 'any': any, 'all': all,
+        'math': math,  # statistical functions için
+    }
+    
+    namespace = {'__builtins__': safe_builtins}
+    
+    try:
+        exec(code, namespace)
+    except Exception as e:
+        raise ValueError(f"Kod çalıştırılırken hata: {e}")
+    
+    # ── Fonksiyon çıkarımı ──────────────────────────────────────────────────
+    if function_name not in namespace:
+        raise ValueError(f"Fonksiyon '{function_name}' kodda tanımlanmamış")
+    
+    user_fn = namespace[function_name]
+    if not callable(user_fn):
+        raise ValueError(f"'{function_name}' çağrılabilir değil")
+    
+    # ── Assertion fonksiyonu dön ────────────────────────────────────────────
+    def assertion(value):
+        try:
+            result = user_fn(value)
+            return bool(result)
+        except Exception as e:
+            # Execution sırasında hata → FAIL
+            return False
+    
+    return assertion
+
 # ── Check engine ─────────────────────────────────────────────────────────────
 
 class CheckEngine:

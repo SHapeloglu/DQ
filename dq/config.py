@@ -39,6 +39,7 @@ from dq.engine import (
     less_than, greater_than, between, equals,
     row_count_at_least, row_count_between, is_not_null, referential_integrity,
     completeness_ratio, statistical_anomaly, schema_drift, schema_check, duplicate_row, custom_sql, volume_anomaly, zscore_anomaly,
+    custom_script_assertion,
 )
 from dq.connectors import build_connector
 from dq.metrics import MetricStore
@@ -50,6 +51,27 @@ def _get_metric_store() -> MetricStore:
         return MetricStore(backend="postgres", dsn=dsn)
     return MetricStore()
 
+
+
+
+def _get_custom_script_fn(script_id: int):
+    """DB'den custom script yükleyip assertion fonksiyonu döner."""
+    import mysql.connector
+    from database import get_conn, release_conn
+    
+    try:
+        conn = get_conn()
+        with conn.cursor(dictionary=True) as cur:
+            cur.execute("SELECT code, function_name FROM custom_scripts WHERE id = %s AND is_active = 1", (script_id,))
+            row = cur.fetchone()
+        release_conn(conn)
+        
+        if not row:
+            raise ValueError(f"Script ID {script_id} bulunamadı")
+        
+        return custom_script_assertion(row['code'], row['function_name'])
+    except Exception as e:
+        raise ValueError(f"Custom script yüklenirken hata: {e}")
 
 # Desteklenen assertion adları → fabrika fonksiyonları
 _ASSERTION_MAP = {

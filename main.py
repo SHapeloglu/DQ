@@ -35,9 +35,10 @@ from main_extensions import register_routes
 register_auth_routes(app, templates, get_conn)
 register_routes(app, templates)
 
-from routers import sources, checks, api, ui
+from routers import sources, checks, api, ui, scripts
 app.include_router(sources.router)
 app.include_router(checks.router)
+app.include_router(scripts.router)
 app.include_router(api.router)
 app.include_router(ui.router)
 
