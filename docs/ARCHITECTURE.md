@@ -1,9 +1,9 @@
 # DQ Mimari Haritası
 
 ## 1. Çekirdek Motor (dq/)
-- engine.py: CheckEngine + 19 assert tipi
+- engine.py: CheckEngine + 19 assert tipi + custom_script_assertion()
 - anomaly.py: AnomalyDetector (z-score + EWMA + Holt-Winters + trend yönü)
-- config.py: SodaConfig + _ASSERTION_MAP (19 entry)
+- config.py: SodaConfig + _ASSERTION_MAP (19+1 entry) + _get_custom_script_fn()
 - metrics.py: MetricStore (SQLite dev + Postgres prod + read replica)
 - connectors.py: BaseConnector + 8 veritabanı tipi
   NOT: BaseConnector abstract metodu close() — disconnect() değil
@@ -20,11 +20,12 @@
 4. tests/test_engine.py → TestXxx sınıfı + test_in_assertion_map testi yaz
 
 ### custom_script_assertion Detayı
-- **İmza**: custom_script_assertion(code: str, function_name: str = "check") — AST validation ile güvenlik kontrol eder
-- **AST Validation**: os, subprocess, sys, shutil, pathlib, socket, urllib, requests import'ları reddeder; eval, exec, compile, __import__, open, input, print fonksiyonları yasaklı
-- **Execution**: Kısıtlı __builtins__ (len, str, int, float, bool, abs, min, max, isinstance, math vb.) ile exec() çalıştırır
-- **DB Entegrasyonu**: config.py'daki `_get_custom_script_fn(script_id)` → custom_scripts tablosundan kod yükle
-- **Dönen değer**: Assertion fonksiyonu (value → bool)
+- İmza: custom_script_assertion(code: str, function_name: str = "check")
+- AST Validation: os, subprocess, sys, shutil, pathlib, socket, urllib, requests yasaklı
+- Yasaklı fonksiyonlar: eval, exec, compile, __import__, open, input, print
+- Execution: Kısıtlı __builtins__ (len, str, int, float, bool, abs, min, max, math vb.) ile exec()
+- DB Entegrasyonu: _get_custom_script_fn(script_id) → custom_scripts tablosundan kod yükle
+- Dönen değer: Assertion fonksiyonu (value → bool)
 
 ### schema_check Detayı
 - İmza: schema_check(expected_columns: dict) — kolon varlığı + tip kontrolü
@@ -33,24 +34,26 @@
 - tip None ise sadece varlık kontrol edilir; case-insensitive karşılaştırma yapar
 
 ## 2. Web Backend
-- main.py: FastAPI init
-- database.py: MySQL bağlantısı
+- main.py: FastAPI init + router include'ları (sources, checks, scripts, api, ui)
+- database.py: MySQL bağlantısı + init_db() (custom_scripts dahil tüm tablolar)
 - profiler.py: PII tagging (24 pattern)
 - cache_layer.py: TTLCache (5 dk)
 - extensions.py: AlertManager
-- secrets_loader.py: get_secret()
+- secrets_loader.py: get_secret() — /run/secrets/ → env → default
 
 ## 3. Routers
 - sources.py: /sources CRUD
-- checks.py: /checks CRUD
-- api.py: /api/*, /odata
+- checks.py: /checks CRUD + /api/suggestions/reject
+- scripts.py: /scripts CRUD + /api/scripts/test (dry-run)
+- api.py: /api/runs, /api/results, /api/health-score, /api/profile-export, /api/pii-report, /odata
 - ui.py: Web sayfaları
 
-## 4. DB Şeması
+## 4. DB Şeması (MySQL — dq-db:3308)
 - sources, checks, runs, run_results
 - column_profiles (PII, business metadata)
 - alert_settings (singleton id=1)
 - rule_library (pattern → rule → times_used)
+- custom_scripts (id, name, code LONGTEXT, function_name, description, is_active)
 - MetricStore: dwh_health_log.dq_metrics (Postgres)
 
 ## 5. Airflow DAG'ları
@@ -59,8 +62,10 @@
 
 ## 6. Güvenlik
 - secrets/.env.secrets (chmod 600, git ignore)
+- secrets/files/ (Docker secrets, chmod 600, git ignore)
 - secrets_loader.py: /run/secrets/ → env → default
 - GPG key: dq@localhost (RSA 4096)
+- custom_script_assertion: AST tabanlı kod güvenlik doğrulaması
 
 ## 7. Kritik Nodlar (Grafik Analizi)
 - build_connector(): betweenness 0.437, tüm connector factory buradan geçer
@@ -80,7 +85,13 @@
 Wizard → Airflow DQOperator → CheckEngine.run() → AnomalyDetector.detect_all()
 → _detect_trend() [trend yönü] → run_results → /anomaly dashboard
 
-## 10. Puanlama (Rekabet)
+## 10. Custom Script Akışı
+/scripts/new → kod gir + test et (/api/scripts/test dry-run)
+→ AST validation → custom_scripts DB'ye kaydet
+→ /checks'te assert_type="custom_script", assert_value="{script_id}"
+→ Airflow → _get_custom_script_fn(id) → DB'den kod yükle → exec() → assertion
+
+## 11. Puanlama (Rekabet)
 Genel: 6.7/10 → ~8.4/10
-Güçlü: PII/KVKK (9/10), maliyet (10/10), anomali trend (8.5/10), wizard UX (8.5/10)
-Zayıf: ölçeklenebilirlik (6/10)
+Güçlü: PII/KVKK (9/10), maliyet (10/10), anomali trend (8.5/10), wizard UX (8.5/10), custom scripts (8.5/10)
+Zayıf: ölçeklenebilirlik (6.5/10)
