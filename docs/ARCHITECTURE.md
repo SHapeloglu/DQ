@@ -48,7 +48,7 @@
 - api.py: /api/runs, /api/results, /api/health-score, /api/profile-export, /api/pii-report, /odata
 - ui.py: Web sayfaları
 
-## 4. DB Şeması (MySQL — dq-db:3308)
+## 4. DB Şeması (MySQL — ortak `mysql-ortak`, veritabanı `dq`, kullanıcı `uygulama`; 2026-10-18'den beri)
 - sources, checks, runs, run_results
 - column_profiles (PII, business metadata)
 - alert_settings (singleton id=1)

@@ -42,7 +42,7 @@
 | Pydantic + from __future__ import annotations | Optional[int] KULLANMA, Request import et |
 | Test mock | routers.api.get_conn — database.get_conn değil |
 | pymysql venv'de yok | Testlerde MagicMock, database.py import etme |
-| DB migration | docker exec -i dq-db mysql -u root -proot dq << 'SQL' |
+| DB migration | docker exec -i mysql-ortak mysql -u uygulama -p"$ORTAK_SIFRE" dq << 'SQL'   # şifre: /opt/mysql-ortak/.env |
 | Büyük değişiklik | py_compile → pytest → Docker build sırası |
 
 ---

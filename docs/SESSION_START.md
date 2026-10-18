@@ -72,7 +72,7 @@ Wizard → kural DB'ye yazılır → Airflow DQOperator → CheckEngine.run()
 - heredoc: `python3 - << 'PYEOF'` tercih edilen
 - pymysql venv'de yok — testlerde DB import etme, MagicMock kullan
 - Docker build: `docker compose build dq-web && docker compose up -d dq-web`
-- DB migration: `docker exec -i dq-db mysql -u root -proot dq -e "..."`
+- DB migration: `docker exec -i mysql-ortak mysql -u uygulama -p"$ORTAK_SIFRE" dq -e "..."   # şifre: /opt/mysql-ortak/.env`
 - Connection pool: get_conn() havuzdan alır, release_conn(conn) havuza iade eder
 - secrets_loader: TOML'da `password = "secret:DB_PASSWORD"` prefix kullan
 
@@ -89,7 +89,7 @@ Wizard → kural DB'ye yazılır → Airflow DQOperator → CheckEngine.run()
 
 ## Docker
 - `dq-web` → 0.0.0.0:8002 (uvicorn)
-- `dq-db` → 0.0.0.0:3308 (mysql:8.0)
+- veritabanı: ortak `mysql-ortak` (2026-10-18'de `dq-db` konteyneri kaldırıldı; eski konteyner/volume yedek olarak duruyor)
 - requirements.txt: statsmodels==0.14.2 + numpy==1.26.4 + psycopg2==2.9.9
 
 ---

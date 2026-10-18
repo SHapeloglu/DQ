@@ -166,7 +166,7 @@ Tarayıcıda aç: **http://localhost:8002**
 Proje kökünde `.env` dosyası oluştur:
 
 ```env
-DB_HOST=dq-db
+DB_HOST=mysql-ortak   # sunucudaki ortak MySQL (ağ ortak-db); DB_USER=uygulama
 DB_PORT=3306
 DB_NAME=dq
 DB_USER=root
