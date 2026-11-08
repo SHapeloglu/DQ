@@ -182,12 +182,34 @@ def get_current_user(request: Request) -> dict | None:
     return decode_token(token)
 
 
+def _guncel_kullanici(username: str) -> dict | None:
+    """Kullanıcının veritabanındaki güncel ve aktif kaydını döner. Kayıt yoksa, pasifse ya da
+    veritabanına ulaşılamıyorsa None döner (kapalı başarısızlık: erişim verilmez)."""
+    if not username or _conn_fn is None:
+        return None
+    conn = None
+    try:
+        conn = _conn_fn()
+        return get_user(conn, username)
+    except Exception:
+        return None
+    finally:
+        if conn is not None:
+            conn.close()
+
+
 # ── Genel yetki kapısı ───────────────────────────────────────────────────────
 # Uygulamanın TÜM rotalarına main.py'de FastAPI(dependencies=[Depends(yetki_kapisi)]) ile uygulanır; böylece yeni eklenen bir rota rol kontrolünü unutsa bile korumasız kalmaz.
 # Kurallar: giriş sayfaları açık; /admin/* ve /settings/* için admin; GET/HEAD için viewer; diğer yöntemler (POST/PUT/DELETE) için editor.
 # Makine istemcileri (Airflow DAG'ı, Power BI OData) çerez taşıyamaz: DQ_API_TOKEN ortam değişkeni tanımlıysa "X-DQ-Token" başlığıyla (veya "Authorization: Bearer ...") yalnız /api/* ve /odata/* yollarında editor yetkisiyle girebilirler.
 ACIK_YOLLAR = ("/login", "/login/submit", "/logout")
 MAKINE_YOL_ONEKLERI = ("/api/", "/odata/")
+# Yalnız admin erişebilen yollar: yönetim sayfaları ve uyarı ayarları (SMTP ve webhook bilgileri).
+ADMIN_YOL_ONEKLERI = ("/admin/", "/settings/", "/api/alert-settings")
+ADMIN_YOLLAR = ("/admin", "/settings")
+
+# Veritabanı bağlantı fabrikası; register_auth_routes içinde atanır.
+_conn_fn = None
 
 
 def _servis_anahtari_gecerli(request: Request) -> bool:
@@ -213,23 +235,31 @@ def yetki_kapisi(request: Request):
         return None
 
     makine_yolu = yol.startswith(MAKINE_YOL_ONEKLERI)
-    if makine_yolu and _servis_anahtari_gecerli(request):
-        return {"sub": "servis", "role": "editor"}
 
-    user = get_current_user(request)
-    if not user:
-        if makine_yolu:
-            raise HTTPException(status_code=401, detail="Kimlik doğrulaması gerekli")
-        raise HTTPException(status_code=307, headers={"Location": "/login"})
-
-    if yol.startswith(("/admin/", "/settings/")) or yol in ("/admin", "/settings"):
+    if yol.startswith(ADMIN_YOL_ONEKLERI) or yol in ADMIN_YOLLAR:
         gerekli = "admin"
     elif request.method in ("GET", "HEAD", "OPTIONS"):
         gerekli = "viewer"
     else:
         gerekli = "editor"
+
+    if makine_yolu and _servis_anahtari_gecerli(request):
+        # Servis anahtarı editor yetkisindedir; admin yollarında bu yetki yetmez.
+        user = {"sub": "servis", "role": "editor"}
+    else:
+        token_user = get_current_user(request)
+        # Rol token'daki değil veritabanındaki güncel kayıttan alınır: silinen, pasifleştirilen
+        # ya da yetkisi düşürülen kullanıcı, token süresi dolmadan da erişimini kaybeder.
+        guncel = _guncel_kullanici(token_user.get("sub", "")) if token_user else None
+        if not guncel:
+            if makine_yolu:
+                raise HTTPException(status_code=401, detail="Kimlik doğrulaması gerekli")
+            raise HTTPException(status_code=307, headers={"Location": "/login"})
+        user = {**token_user, "role": guncel.get("role", "viewer")}
+
     if ROLE_WEIGHTS.get(user.get("role", "viewer"), 0) < ROLE_WEIGHTS[gerekli]:
         raise HTTPException(status_code=403, detail=f"Bu işlem için en az '{gerekli}' rolü gerekli")
+    request.state.user = user
     return user
 
 
@@ -250,7 +280,8 @@ def require_role(min_role: str = "viewer"):
         - Rolü yetersizse HTTP 403 döner.
         Başarılıysa kullanıcı bilgisini route'a verir.
         """
-        user = get_current_user(request)
+        # Kapıdan geçen (veritabanıyla doğrulanmış) kullanıcı varsa onu kullan.
+        user = getattr(request.state, "user", None) or get_current_user(request)
         if not user:
             raise HTTPException(
                 # Giriş yapılmamışsa login sayfasına yönlendirme yapılır. (Yönlendirme durum kodu 307 olarak ayarlanmış.)
@@ -273,6 +304,8 @@ def require_role(min_role: str = "viewer"):
 
 def register_auth_routes(app, templates, get_conn_fn):
     """Auth route'larını FastAPI app'e ekler."""
+    global _conn_fn
+    _conn_fn = get_conn_fn
 
     from fastapi.responses import HTMLResponse
 

@@ -290,6 +290,9 @@ def api_alert_settings_get():
         with conn.cursor() as cur:
             cur.execute("SELECT * FROM alert_settings LIMIT 1")
             row = cur.fetchone()
+        # SMTP parolası asla düz metin dönmez; yalnız var olduğu belli edilir.
+        if row and row.get("smtp_pass"):
+            row["smtp_pass"] = "********"
         return row or {}
     finally:
         release_conn(conn)
@@ -303,6 +306,9 @@ def api_alert_settings_put(payload: dict):
     """
     allowed = {"slack_webhook","webhook_url","email_to","smtp_host","smtp_port","smtp_user","smtp_pass"}
     data = {k: v for k, v in payload.items() if k in allowed}
+    # GET maskeli parolayı geri gönderir; bu değer kayıtlı parolanın üzerine yazılmamalı.
+    if data.get("smtp_pass") == "********":
+        del data["smtp_pass"]
     if not data:
         from fastapi import HTTPException
         raise HTTPException(400, "Güncellenecek alan yok")

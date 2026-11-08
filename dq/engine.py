@@ -397,6 +397,19 @@ def custom_script_assertion(code: str, function_name: str = "check"):
         "breakpoint", "help", "memoryview",
     }
 
+    # Öznitelik allowlist'i: yalnız bilinen güvenli metot/alan adları kabul edilir.
+    # Neden: denylist (alt çizgi + birkaç isim) eksik kalıyor; `gi_frame`, `f_builtins`,
+    # `"{0.__class__}".format` gibi yollarla sandbox dışına çıkılabiliyordu. Bilinmeyen her öznitelik reddedilir.
+    GUVENLI_OZNITELIKLER = {
+        "strip", "lstrip", "rstrip", "lower", "upper", "title", "capitalize", "casefold",
+        "startswith", "endswith", "split", "rsplit", "splitlines", "join", "replace",
+        "find", "rfind", "index", "rindex", "count", "zfill", "ljust", "rjust", "center",
+        "isdigit", "isnumeric", "isdecimal", "isalpha", "isalnum", "isspace", "islower", "isupper",
+        "get", "keys", "values", "items", "append", "extend", "insert", "pop", "remove", "clear",
+        "add", "discard", "union", "intersection", "difference", "issubset", "issuperset", "copy",
+        "real", "imag", "is_integer", "bit_length", "conjugate",
+    }
+
     for node in ast.walk(tree):
         # Import kontrolleri
         if isinstance(node, ast.Import):
@@ -413,8 +426,12 @@ def custom_script_assertion(code: str, function_name: str = "check"):
         # Öznitelik kontrolü: `obj.__class__`, `obj._x` gibi alt çizgiyle başlayan erişimler.
         # Neden: `().__class__.__bases__[0].__subclasses__()` zinciriyle tüm sınıflara
         # ulaşılıp sandbox dışına çıkılabilir. Kullanıcı kodunda bu tür alanlara gerek yoktur.
-        if isinstance(node, ast.Attribute) and node.attr.startswith("_"):
-            raise ValueError(f"Yasaklı öznitelik: {node.attr}")
+        # `math.<fonksiyon>` erişimine izin verilir; alt çizgili math öznitelikleri (ör. __loader__) hariç.
+        if isinstance(node, ast.Attribute):
+            math_ok = (isinstance(node.value, ast.Name) and node.value.id == "math"
+                       and not node.attr.startswith("_"))
+            if not math_ok and node.attr not in GUVENLI_OZNITELIKLER:
+                raise ValueError(f"Yasaklı öznitelik: {node.attr}")
 
         # İsim kontrolü: hem `eval(...)` gibi çağrıları hem `f = getattr` gibi değer olarak
         # kullanımları yakalar. Neden: yasaklı bir fonksiyon değişkene atanıp sonra

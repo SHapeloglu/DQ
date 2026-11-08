@@ -50,3 +50,30 @@ def test_yasakli_import_hala_reddedilir():
     kod = "import os\ndef check(v):\n    return True"
     with pytest.raises(ValueError, match="Yasaklı import: os"):
         custom_script_assertion(kod)
+
+
+def test_frame_ozniteligi_reddedilir():
+    # Üreteç çerçevesi (gi_frame → f_builtins) ile sandbox'ın builtins'ine ulaşmak denenir.
+    kod = "def check(v):\n    g = (x for x in [1])\n    return g.gi_frame"
+    with pytest.raises(ValueError, match="Yasaklı öznitelik: gi_frame"):
+        custom_script_assertion(kod)
+
+
+def test_format_ile_ozniteliğe_erisim_reddedilir():
+    # str.format alan zinciri ("{0.__class__}") ile öznitelik okuma denenir.
+    kod = "def check(v):\n    return '{0.__class__}'.format(v)"
+    with pytest.raises(ValueError, match="Yasaklı öznitelik: format"):
+        custom_script_assertion(kod)
+
+
+def test_math_alt_cizgili_ozniteligi_reddedilir():
+    kod = "def check(v):\n    return math.__loader__"
+    with pytest.raises(ValueError, match="Yasaklı öznitelik"):
+        custom_script_assertion(kod)
+
+
+def test_mesru_metot_kullanimi_calisir():
+    kod = "def check(v):\n    return v.strip().lower() == 'aktif'"
+    fn = custom_script_assertion(kod)
+    assert fn("  AKTIF ") is True
+    assert fn("pasif") is False
