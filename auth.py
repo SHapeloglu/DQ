@@ -25,6 +25,7 @@ from __future__ import annotations
 import hmac
 import os
 import secrets
+import sys
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -155,21 +156,22 @@ def ensure_users_table(conn):
         """)
         conn.commit()
 
-        # Admin satırı yoksa oluşturulur (admin silinirse bir sonraki girişte yeniden doğar). İlk parola DQ_ADMIN_PASSWORD ortam değişkeninden gelir; verilmezse rastgele üretilir ve logda BİR KEZ gösterilir.
+        # Admin satırı yoksa oluşturulur (admin silinirse bir sonraki girişte yeniden doğar). İlk parola DQ_ADMIN_PASSWORD ortam değişkeninden gelir; verilmezse rastgele üretilir ve stderr'e BİR KEZ yazılır (dosyaya yazılmaz).
         cur.execute("SELECT id FROM users WHERE username = 'admin'")
         if not cur.fetchone():
             if HAS_AUTH_DEPS:
-                ilk_parola = os.environ.get("DQ_ADMIN_PASSWORD") or secrets.token_urlsafe(12)
+                parola_env = os.environ.get("DQ_ADMIN_PASSWORD")
+                ilk_parola = parola_env or secrets.token_urlsafe(12)
                 hashed = hash_password(ilk_parola)
                 cur.execute(
                     "INSERT INTO users (username, email, password, role) VALUES (%s,%s,%s,%s)",
                     ("admin", "admin@dq.local", hashed, "admin")
                 )
                 conn.commit()
-                if not os.environ.get("DQ_ADMIN_PASSWORD"):
-                    print("✓ Varsayılan admin oluşturuldu — parola kayda yazılmadı; DQ_ADMIN_PASSWORD ile belirleyin")
-                else:
+                if parola_env:
                     print("✓ Varsayılan admin oluşturuldu — parola DQ_ADMIN_PASSWORD değişkeninden")
+                else:
+                    print(f"✓ Varsayılan admin oluşturuldu — geçici admin parolası: {ilk_parola} — ilk girişten sonra değiştirin", file=sys.stderr)
 
 
 # ── Request'ten kullanıcı al ──────────────────────────────────────────────────
@@ -300,6 +302,11 @@ def require_role(min_role: str = "viewer"):
     return checker
 
 
+def _cookie_secure() -> bool:
+    """DQ_COOKIE_SECURE 1/true/yes ise True. Varsayılan False; HTTPS arkasında bu ayar etkinleştirilmelidir."""
+    return os.environ.get("DQ_COOKIE_SECURE", "").strip().lower() in ("1", "true", "yes")
+
+
 # ── Auth route'larını kaydet ──────────────────────────────────────────────────
 
 def register_auth_routes(app, templates, get_conn_fn):
@@ -349,10 +356,11 @@ def register_auth_routes(app, templates, get_conn_fn):
         response.set_cookie(
             "dq_token", token,
             # httponly: JavaScript token'a erişemez (XSS saldırılarına karşı koruma). samesite=lax: çapraz site isteklerinde çerez gönderilmez (CSRF'e karşı kısmi koruma).
-            # DİKKAT: `secure=True` ayarlı değil; HTTPS üzerinde çalışırken eklenmesi önerilir.
+            # secure: DQ_COOKIE_SECURE=1/true/yes ise çerez yalnız HTTPS üzerinden gönderilir. Varsayılan kapalıdır (HTTP kurulumları kırılmasın); HTTPS arkasında DQ_COOKIE_SECURE=1 ayarlanmalı.
             httponly=True,
             max_age=TOKEN_EXPIRE_HOURS * 3600,
             samesite="lax",
+            secure=_cookie_secure(),
         )
         return response
 
