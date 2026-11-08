@@ -43,12 +43,17 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# Göreli yol: veritabanı dosyası, uygulamanın çalıştığı klasöre göre oluşturulur.
 DB_PATH = Path("dq_results.db")
 
 
 # ── Veritabanı ────────────────────────────────────────────────────────────────
 
 def _get_db() -> sqlite3.Connection:
+    """
+    SQLite veritabanına (dq_results.db) bağlanır, tabloları ve indeksleri yoksa oluşturur. Her çağrıda çalışır; `IF NOT EXISTS` sayesinde zararsızdır.
+    Bağlantı satırları dict gibi okunabilsin diye `sqlite3.Row` ile açılır. Çağıran kod işi bitince `close()` çağırmalıdır.
+    """
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.executescript("""
@@ -96,10 +101,12 @@ class RunPayload(BaseModel):
 # ── Yardımcılar ───────────────────────────────────────────────────────────────
 
 def _now_iso() -> str:
+    """Şu anki UTC zamanını ISO 8601 metni olarak döndürür (ör. 2026-10-24T10:00:00+00:00)."""
     return datetime.now(timezone.utc).isoformat()
 
 
 def _row_to_dict(row: sqlite3.Row) -> dict:
+    """SQLite satırını (`sqlite3.Row`) normal Python sözlüğüne çevirir; JSON'a dönüştürülebilir hale getirir."""
     return dict(row)
 
 
@@ -107,6 +114,7 @@ def _row_to_dict(row: sqlite3.Row) -> dict:
 
 @app.get("/health")
 def health():
+    """Servisin ayakta olup olmadığını kontrol eder. Her zaman `status: ok` ve sunucu zamanını döner. İzleme araçları için kullanılır."""
     return {"status": "ok", "time": _now_iso()}
 
 
@@ -127,6 +135,7 @@ def post_run(payload: RunPayload):
              json.dumps(payload.model_dump())),
         )
 
+        # DİKKAT: Aynı run_id ile sonuçlar tekrar gönderilirse `runs` kaydı üzerine yazılır ama `check_results` satırları çoğalır. Tekrar gönderimde çift sonuç oluşabilir.
         for r in payload.results:
             passed = r.get("passed")
             if passed is None:
@@ -137,6 +146,7 @@ def post_run(payload: RunPayload):
                 (run_id,
                  r.get("name") or r.get("metric_name", "unknown"),
                  int(bool(passed)),
+                 # DİKKAT: `or` kullanıldığı için değer 0 ise (falsy) boş (NULL) kaydedilir. Sıfır değerleri kaybolabilir; düzeltilmesi önerilir.
                  r.get("value") or r.get("current"),
                  str(r.get("expected", "")),
                  run_at),
@@ -155,6 +165,10 @@ def get_runs(
     limit: int = Query(50, ge=1, le=1000),
     dag_id: str | None = None,
 ):
+    """
+    Çalıştırmaların (run) özet listesini döndürür, en yeniden eskiye. `dag_id` verilirse yalnız o DAG'ın çalıştırmaları gelir.
+    `limit` 1 ile 1000 arasında olmalıdır; dışındaki değerler FastAPI tarafından reddedilir.
+    """
     db = _get_db()
     try:
         if dag_id:
@@ -176,6 +190,7 @@ def get_runs(
 
 @app.get("/api/runs/{run_id}")
 def get_run(run_id: str):
+    """Tek bir çalıştırmanın tam kaydını (kaydedilen JSON) döndürür. Bulunamazsa 404 döner."""
     db = _get_db()
     try:
         row = db.execute(
@@ -304,6 +319,7 @@ def odata_metadata():
 def odata_results(
     top:    int = Query(500, alias="$top"),
     skip:   int = Query(0,   alias="$skip"),
+    # DİKKAT: `$filter` parametresi kabul ediliyor ama şu an uygulanmıyor; değeri yok sayılır.
     filter: str | None = Query(None, alias="$filter"),
 ):
     """
@@ -338,6 +354,7 @@ def odata_results(
     # OData JSON format (Power BI ve Qlik bunu bekler)
     return JSONResponse({
         "@odata.context": "/odata/$metadata#Results",
+        # DİKKAT: Bu değer tüm kayıt sayısı değil, bu sayfadaki kayıt sayısıdır.
         "@odata.count":   len(values),
         "value":          values,
     })

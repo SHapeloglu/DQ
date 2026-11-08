@@ -39,18 +39,21 @@ console = Console()
 # ── Yardımcılar ───────────────────────────────────────────────────────────────
 
 def _status_text(passed: bool, label: str = "") -> Text:
+    """Durum metnini renkli olarak üretir: passed True ise yeşil "✓", değilse kırmızı "✗". `label` verilmezse PASS/FAIL yazılır."""
     if passed:
         return Text(f"✓ {label or 'PASS'}", style="bold green")
     return Text(f"✗ {label or 'FAIL'}", style="bold red")
 
 
 def _now() -> str:
+    """Şu anki UTC zamanını "YYYY-AA-GG SS:DD:SS UTC" (yıl-ay-gün saat:dakika:saniye) biçiminde metin olarak döndürür."""
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
 
 # ── Check sonuçları tablosu ───────────────────────────────────────────────────
 
 def _check_table(results) -> Table:
+    """Kalite kontrollerinin sonuçlarını bir tabloya çevirir (ad, durum, değer, beklenen, etiket). Değer yoksa "—" yazılır."""
     table = Table(
         box=box.ROUNDED,
         show_header=True,
@@ -81,6 +84,7 @@ def _check_table(results) -> Table:
 # ── Anomali tablosu ───────────────────────────────────────────────────────────
 
 def _anomaly_table(results) -> Table:
+    """Anomali sonuçlarını tabloya çevirir: metrik, durum, değer, alt/üst sınır, skor ve yöntem. Anomali yoksa "OK" görünür."""
     table = Table(
         box=box.ROUNDED,
         show_header=True,
@@ -114,6 +118,7 @@ def _anomaly_table(results) -> Table:
 # ── Kontrat tablosu ───────────────────────────────────────────────────────────
 
 def _contract_table(result) -> Table:
+    """Veri kontratı sonuçlarını tabloya çevirir. Her satır bir kontrol kuralıdır; "Kural" sütunu detayın ilk ':' öncesidir."""
     table = Table(
         box=box.ROUNDED,
         show_header=True,
@@ -129,6 +134,7 @@ def _contract_table(result) -> Table:
 
     for v in result.violations:
         table.add_row(
+            # DİKKAT: Kural adı, detay metninin ilk ':' işaretinden önceki kısmıdır. Detayda ':' yoksa tüm metin kural adı olur.
             v.detail.split(":")[0],
             v.rule,
             _status_text(v.passed),
@@ -142,6 +148,10 @@ def _contract_table(result) -> Table:
 
 def _summary_panel(check_results=None, anomaly_results=None,
                    contract_results=None) -> Panel:
+    """
+    Tüm sonuçların özetini içeren üst kutuyu (Panel) hazırlar: kontrol, anomali ve kontrat sayıları ile zaman.
+    Yeşil renk: her şey geçti; kırmızı: en az bir hata var. Sonuç verilmeyen bölüm özete girmez.
+    """
     parts = []
 
     if check_results:
@@ -174,17 +184,21 @@ def _summary_panel(check_results=None, anomaly_results=None,
 def _run_once(config_path: str, mode: str, tags: list[str] | None):
     """Config'i yükle, çalıştır, sonuçları döndür."""
     import sys
+    # Proje kök klasörünü import yoluna ekler; böylece `dq` paketi komut hangi klasörden çalıştırılırsa çalıştırılsın bulunur.
     sys.path.insert(0, str(Path(__file__).parent.parent))
 
     check_results    = None
+    # Anomali sonuçları şu an hiç üretilmiyor; bu yüzden anomali tablosu dashboard'da görünmez.
     anomaly_results  = None
     contract_results = None
 
     if mode == "contract":
         from dq.contracts import load_contract, ContractValidator
+        # TODO(kontrol): SodaConfig bu fonksiyonda birden çok kez içe aktarılıyor; sadeleştirilebilir.
         from dq.config import SodaConfig
 
         contract  = load_contract(config_path)
+        # DİKKAT: `raw_cfg` hiçbir yerde kullanılmıyor. Python 3.11 öncesinde TOML için `tomli` gerekir; bu satır gereksizdir.
         raw_cfg   = __import__("tomllib" if sys.version_info >= (3,11)
                                else "tomli", fromlist=["load"])
         with open(config_path, "rb") as f:
@@ -245,6 +259,7 @@ def render_watch(config_path: str, mode: str = "checks",
         while True:
             console.clear()
             render(config_path, mode, tags)
+            # Geri sayım: her saniye bir azaltılıp aynı satırda gösterilir (`end="\r"` ile satır başına dönülür). Bitince dashboard yeniden çalışır.
             for remaining in range(every, 0, -1):
                 console.print(
                     f"[dim]Sonraki yenileme: {remaining}s[/dim]",
@@ -258,6 +273,7 @@ def render_watch(config_path: str, mode: str = "checks",
 # ── CLI giriş noktası ────────────────────────────────────────────────────────
 
 def dashboard_cli():
+    """Komut satırı giriş noktası (`dq dashboard ...`). Argümanları (config, --mode, --watch, --every, --tags) okur ve ya tek sefer ya da canlı modda dashboard'u çalıştırır."""
     import argparse
 
     parser = argparse.ArgumentParser(

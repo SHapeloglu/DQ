@@ -64,6 +64,10 @@ class MetricStore:
         dsn: str | None = None,
         read_replica_dsn: str | None = None,
     ) -> None:
+        """
+        Metrik deposunu açar. `backend="sqlite"` (varsayılan) yerel dosyaya yazar; `"postgres"` için `dsn` zorunludur ve tablo yoksa oluşturulur.
+        `read_replica_dsn` verilirse geçmiş okumaları bu ikincil sunucudan yapılır (yükü azaltmak için).
+        """
         self.backend = backend
 
         if backend == "postgres":
@@ -76,18 +80,22 @@ class MetricStore:
     # ── Init ─────────────────────────────────────────────────────────────────
 
     def _init_sqlite(self, db_path: str | Path) -> None:
+        # DİKKAT: Bağlantı bu thread'de açılıyor. CheckEngine check'leri başka thread'lerde çalıştırdığı için SQLite tarafında thread hatası çıkabilir (check_same_thread).
+        """SQLite dosyasını açar ve metrik tablosunu (yoksa) oluşturur."""
         self._conn = sqlite3.connect(str(db_path))
         self._conn.executescript(_SQLITE_DDL)
         self._conn.commit()
         self._pg_conn = None
 
     def _init_postgres(self, dsn: str, read_replica_dsn: str | None = None) -> None:
+        """PostgreSQL bağlantısını açar, `dwh_health_log` şemasını ve `dq_metrics` tablosunu (yoksa) oluşturur. psycopg2 kurulu değilse ImportError fırlatır."""
         try:
             import psycopg2
             import psycopg2.extras
         except ImportError:
             raise ImportError("pip install psycopg2-binary")
         self._pg_conn = psycopg2.connect(dsn)
+        # Okuma bağlantısı ayrı bir replika ise onu, değilse ana bağlantıyı kullanır.
         self._pg_conn_read = psycopg2.connect(read_replica_dsn) if read_replica_dsn else self._pg_conn
         self._conn = None
         with self._pg_conn.cursor() as cur:
@@ -240,13 +248,16 @@ class MetricStore:
     # ── Lifecycle ────────────────────────────────────────────────────────────
 
     def close(self) -> None:
+        """Açık veritabanı bağlantılarını kapatır. Hangisi açıksa onu kapatır."""
         if self._conn:
             self._conn.close()
         if self._pg_conn:
             self._pg_conn.close()
 
     def __enter__(self):
+        """`with MetricStore(...) as store:` bloğuna girerken nesnenin kendisini döndürür."""
         return self
 
     def __exit__(self, *_):
+        """`with` bloğu bittiğinde bağlantıları kapatır (hata olsa bile)."""
         self.close()

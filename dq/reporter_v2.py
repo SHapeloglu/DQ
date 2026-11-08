@@ -22,6 +22,8 @@ _BOLD   = "\033[1m"
 
 
 def _c(text, color):
+    # Çıktı bir terminal değilse renk kodu eklenmez; böylece dosyaya yazılan rapor temiz kalır.
+    """Metni renkli (ANSI) olarak döndürür. Çıktı terminal değilse (dosya, pipe) renk kodu eklenmez."""
     if not sys.stdout.isatty():
         return text
     return f"{color}{text}{_RESET}"
@@ -31,6 +33,7 @@ def _c(text, color):
 
 def anomaly_console_report(results: list[AnomalyResult],
                            out: TextIO = sys.stdout) -> None:
+    """Anomali sonuçlarını terminale (ya da verilen `out` akışına) okunur biçimde yazar: her metrik için durum, değer, alt/üst sınır ve yöntem; sonda 'x/y anomali' özeti."""
     print(f"\n{_BOLD}Anomali Tespiti{_RESET}", file=out)
     print("─" * 52, file=out)
 
@@ -50,6 +53,7 @@ def anomaly_console_report(results: list[AnomalyResult],
 
 
 def anomaly_json(results: list[AnomalyResult]) -> dict:
+    """Anomali sonuçlarını JSON'a uygun sözlük olarak döndürür: çalışma zamanı, her sonuç ve toplam/işaretli sayıları."""
     from dataclasses import asdict
     return {
         "run_at":    datetime.now(timezone.utc).isoformat(),
@@ -65,6 +69,7 @@ def anomaly_json(results: list[AnomalyResult]) -> dict:
 
 def contract_console_report(result: ContractResult,
                             out: TextIO = sys.stdout) -> None:
+    """Bir kontratın doğrulama sonuçlarını terminale yazar. Her kontrol için geçti/kaldı simgesi, kural türü ve detay gösterilir; sonda kontrat durumu yazılır."""
     print(f"\n{_BOLD}Veri Kontratı — {result.contract_name}{_RESET}", file=out)
     print("─" * 52, file=out)
 
@@ -80,6 +85,7 @@ def contract_console_report(result: ContractResult,
 
 
 def contract_json(result: ContractResult) -> dict:
+    """Kontrat sonucunu JSON'a uygun sözlük olarak döndürür: kontrat adı, durum ve her ihlal/kontrol."""
     return {
         "contract":   result.contract_name,
         "status":     result.status,
@@ -166,5 +172,6 @@ def full_report(
 
 # Geriye dönük uyumluluk — reporter.py yerine kullan
 def report(results, format="console", output_path=None):
+    """Eski `reporter.py` arayüzüyle uyumlu sarmalayıcı: yalnız check sonuçlarını `full_report` ile raporlar. Dönüş: 0 (başarılı) veya 1 (başarısız)."""
     return full_report(check_results=results, format=format, output_path=output_path)
 

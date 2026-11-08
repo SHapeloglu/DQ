@@ -1,3 +1,5 @@
+# DQ web arayüzü (FastAPI) servisleri. Veritabanı ortak MySQL'dir (ağ: ortak-db); eski dq-db servisi artık kullanılmaz.
+# Parolalar 'secrets' bölümünde dosya olarak tutulur; bu dosyalar git'e yazılmaz.
 services:
 
   # ── DQ Web UI ──────────────────────────────────────────────────────────────
@@ -6,25 +8,34 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: dq-web
+    # always: konteyner çöktüğünde ve sunucu açıldığında kendiliğinden kalkar.
     restart: always
+    # İki env dosyası yüklenir. İkinci dosya (secrets/.env.secrets) aynı adlı değişkenleri birinciden sonra okur, yani onları ezer.
     env_file:
       - .env
       - secrets/.env.secrets
+    # Parolalar ortam değişkeni yerine dosyadan okunur ve konteyner içinde /run/secrets/ altında görünür.
+    # Avantaj: değer 'docker inspect' çıktısında açık görünmez.
     secrets:
       - DB_PASSWORD
       - METRICS_PG_DSN
       - METRICS_PG_PASSWORD
       - ALERT_SMTP_PASS
       - ALERT_SLACK_WEBHOOK
+    # Port 8002 tüm arayüzlere (0.0.0.0) bağlı; 127.0.0.1 yazılmadığı için dış IP üzerinden de ulaşılabilir. Erişim sunucu güvenlik duvarına bağlıdır (düzeltilmedi, bilgi amaçlı).
     ports:
       - "8002:8000"
+    # host.docker.internal: konteynerin sunucunun kendisine (host) bu adla erişmesini sağlar. host-gateway, Docker'ın sunucu adresini otomatik verir.
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    # Ortak MySQL ile aynı ağda (ortak-db) olması için bağlanır.
     networks:
       - ortak-db
+    # ./dags klasörü konteynere bağlanır (bind mount). Bu klasördeki dosya değişiklikleri konteynerde hemen görünür.
     volumes:
       - ./dags:/app/dags
 
+# Gizli değerlerin kaynak dosyaları. Her biri secrets/files altındaki ayrı bir dosyadır; içerikleri burada yazılmaz.
 secrets:
   DB_PASSWORD:
     file: ./secrets/files/DB_PASSWORD
@@ -38,6 +49,7 @@ secrets:
     file: ./secrets/files/ALERT_SLACK_WEBHOOK
 
 # 2026-10-18: veritabanı artık ortak MySQL (mysql-ortak, ağ ortak-db). Eski dq-db servisi/volume'ü (dq_docker_dq-mysql-data) yedek olarak duruyor.
+# ortak-db ağı compose tarafından oluşturulmaz; önceden var olmalıdır (external: true).
 networks:
   ortak-db:
     external: true

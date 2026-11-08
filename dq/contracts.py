@@ -50,6 +50,10 @@ from dq.config import _parse_check        # check parser'ı yeniden kullan
 
 @dataclass
 class ColumnSpec:
+    """
+    Kontratta beklenen tek bir kolonu tanımlar.
+    `type` alanı yalnız dokümantasyon amaçlıdır: şu an tip kontrolü yapılmaz (DİKKAT). `nullable=False` ise kolonda NULL olmamalıdır.
+    """
     column:   str
     type:     str           # "integer" | "float" | "string" | "boolean" | "timestamp"
     nullable: bool = True
@@ -57,12 +61,17 @@ class ColumnSpec:
 
 @dataclass
 class FreshnessSpec:
+    """Verinin tazelik (güncellik) kuralı. `column`: zaman damgası kolonu, `max_hours`: en fazla kaç saat eski olabilir."""
     column:    str
     max_hours: float
 
 
 @dataclass
 class DataContract:
+    """
+    Bir veri kaynağının tam kontratı: isim, sahip, sürüm ve üç kural grubu (schema, checks, freshness).
+    Dosyadan `load_contract()` ile okunur; doğrulama `ContractValidator` ile yapılır.
+    """
     name:      str
     owner:     str
     version:   str
@@ -75,6 +84,10 @@ class DataContract:
 
 @dataclass
 class ContractViolation:
+    """
+    Kontrat doğrulamasında yapılan tek bir kontrolün sonucu.
+    `rule` kontrol türünü ("schema", "check", "freshness") ve `passed` geçip geçmediğini tutar. `detail` insan okunur açıklamadır.
+    """
     rule:    str      # "schema" | "check" | "freshness"
     detail:  str
     passed:  bool
@@ -82,21 +95,28 @@ class ContractViolation:
 
 @dataclass
 class ContractResult:
+    """Bir kontratın tüm doğrulama sonuçlarının toplamı."""
     contract_name: str
     violations:    list[ContractViolation]
 
     @property
     def passed(self) -> bool:
+        """Tüm kontrol sonuçları geçtiyse True. Tek bir kontrol bile kaldıysa False döner."""
         return all(v.passed for v in self.violations)
 
     @property
     def status(self) -> str:
+        """Sonucu okunabilir metin olarak verir: "PASS" veya "FAIL"."""
         return "PASS" if self.passed else "FAIL"
 
 
 # ── Kontrat yükleyici ─────────────────────────────────────────────────────────
 
 def load_contract(path: str | Path) -> DataContract:
+    """
+    TOML dosyasını okur ve `DataContract` nesnesi üretir. `[contract]` bölümü zorunludur; yoksa veya `name` yoksa KeyError fırlatılır.
+    `owner` ve `version` yoksa "unknown" ve "0.1" varsayılır. Check'ler `dq.config._parse_check` ile ayrıştırılır.
+    """
     with open(path, "rb") as f:
         raw = tomllib.load(f)
 
@@ -131,6 +151,7 @@ def load_contract(path: str | Path) -> DataContract:
 # ── Kontrat doğrulayıcı ───────────────────────────────────────────────────────
 
 # Tip eşleme: TOML tipi → Python kontrolü
+# DİKKAT: `_TYPE_CHECK` ve `_SQL_TYPE_MAP` şu an hiçbir yerde kullanılmıyor. Tip kontrolü henüz yapılmıyor; yalnız kolon varlığı ve NULL kontrolü var.
 _TYPE_CHECK = {
     "integer":   lambda v: isinstance(v, int),
     "float":     lambda v: isinstance(v, (int, float)),
@@ -167,9 +188,15 @@ class ContractValidator:
     """
 
     def __init__(self, connector):
+        """Doğrulayıcıyı bir connector (veri kaynağı bağlantısı) ile oluşturur. Bağlantı burada açılmaz."""
         self.connector = connector
 
     def validate(self, contract: DataContract) -> ContractResult:
+        """
+        Kontratı tek bir bağlantı üzerinde doğrular: önce schema, sonra check'ler, en son tazelik kontrol edilir.
+        Bağlantı `with` ile açılıp kapanır. Her kontrol kendi hatasını yakalar; bu yüzden tek bir hata tüm doğrulamayı durdurmaz.
+        Dönüş: `ContractResult`.
+        """
         violations: list[ContractViolation] = []
 
         with self.connector as conn:
@@ -185,12 +212,17 @@ class ContractValidator:
     # ── Schema doğrulama ──────────────────────────────────────────────────────
 
     def _check_schema(self, conn, contract: DataContract) -> list[ContractViolation]:
+        """
+        Kolonların varlığını ve (nullable=False ise) NULL olmadığını kontrol eder. Tip kontrolü YAPILMAZ.
+        Kolon listesi `SELECT * FROM source LIMIT 1` ile alınır; kontrat hiç kolon içermiyorsa boş liste döner.
+        """
         if not contract.schema:
             return []
 
         # Mevcut kolonları çek (DuckDB / Postgres her ikisinde de çalışır)
         try:
             rows = conn.execute("SELECT * FROM source LIMIT 1")
+        # Önce `source` tablosuna sorgu denenir. Hata olursa (ör. tablo yoksa) boş bir sorguya düşülür; bu durumda kolon listesi boş kalır ve kolonlar 'bulunamadı' diye FAIL olur.
         except Exception:
             rows = conn.execute("SELECT * FROM (SELECT 1) t LIMIT 0")
 
@@ -210,6 +242,7 @@ class ContractValidator:
             if not spec.nullable:
                 try:
                     null_rows = conn.execute(
+                        # Kolon adı SQL metnine doğrudan ekleniyor. Kolon adları kontrat dosyasından gelir; güvenilmeyen bir kaynaktan gelmemelidir.
                         f"SELECT COUNT(*) AS cnt FROM source WHERE \"{spec.column}\" IS NULL"
                     )
                     null_count = null_rows[0]["cnt"] if null_rows else 0
@@ -235,6 +268,11 @@ class ContractValidator:
     # ── Check doğrulama (1. katman check'lerini tekrar kullan) ───────────────
 
     def _check_checks(self, conn, contract: DataContract) -> list[ContractViolation]:
+        # TODO(kontrol): Bu import bu fonksiyonda kullanılmıyor; eski bir geçici engine kalıntısı olabilir.
+        """
+        Kontrattaki check'leri tek tek çalıştırır. Her check'in sorgusu çalışır, ilk sütunun değeri `assertion` ile değerlendirilir.
+        Sorgu ya da assertion hata verirse ihlal sayılır (FAIL) ve program durmaz.
+        """
         from dq.engine import CheckEngine
 
         if not contract.checks:
@@ -246,6 +284,7 @@ class ContractValidator:
             try:
                 rows  = conn.execute(check.query)
                 value = next(iter(rows[0].values())) if rows else None
+                # Değer None ise assertion çalıştırılmaz ve kontrol doğrudan FAIL sayılır (ör. sorgu boş döndü).
                 passed = check.assertion(value) if value is not None else False
                 violations.append(ContractViolation(
                     rule   = "check",
@@ -262,6 +301,10 @@ class ContractValidator:
     # ── Tazelik doğrulama ─────────────────────────────────────────────────────
 
     def _check_freshness(self, conn, contract: DataContract) -> list[ContractViolation]:
+        """
+        Verinin en yeni zaman damgasını (`MAX(kolon)`) alır ve şu andan kaç saat önce olduğunu `max_hours` ile karşılaştırır.
+        Kolon boşsa ya da okunamazsa FAIL döner. Saat dilimi olmayan değerler UTC kabul edilir.
+        """
         if not contract.freshness:
             return []
 
@@ -279,7 +322,9 @@ class ContractValidator:
                 )]
 
             # ISO string → datetime
+            # 'Z' (UTC) sonekini fromisoformat'ın anlayacağı '+00:00' biçimine çeviriyoruz.
             max_ts = datetime.fromisoformat(str(max_ts_str).replace("Z", "+00:00"))
+            # Zaman damgasında saat dilimi yoksa UTC olduğu varsayılır.
             if max_ts.tzinfo is None:
                 max_ts = max_ts.replace(tzinfo=timezone.utc)
 

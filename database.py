@@ -12,12 +12,14 @@ import pymysql.cursors
 from dotenv import load_dotenv
 from secrets_loader import get_secret
 
+# `.env` dosyası (varsa) ortam değişkenlerine yüklenir. Asıl değerler `get_secret` ile okunur.
 load_dotenv()
 
 DB_CONFIG = {
     "host":     get_secret("DB_HOST", "localhost"),
     "port":     int(get_secret("DB_PORT", "3306")),
     "user":     get_secret("DB_USER", "root"),
+    # DİKKAT: Gizli değer ve ortam değişkeni yoksa kodda yazılı varsayılan parola kullanılır. Üretimde mutlaka DB_PASSWORD verilmelidir.
     "password": get_secret("DB_PASSWORD", "root"),
     "db":       get_secret("DB_NAME", "dq"),
     "charset":  "utf8mb4",
@@ -31,6 +33,7 @@ from queue import Queue, Empty
 class _DBPool:
     """Thread-safe MySQL bağlantı havuzu."""
     def __init__(self, config: dict, size: int = 5):
+        """Havuzu oluşturur: en fazla `size` bağlantıyı önceden açıp kuyruğa koyar. Böylece her istekte yeni bağlantı açmak gerekmez."""
         self._config = config
         self._pool: Queue = Queue(maxsize=size)
         self._lock = threading.Lock()
@@ -38,18 +41,28 @@ class _DBPool:
             self._pool.put(self._new_conn())
 
     def _new_conn(self):
+        """Yeni bir MySQL bağlantısı açar. Ayarlar `DB_CONFIG` sözlüğünden alınır. Bağlanamazsa pymysql hatası fırlar."""
         return pymysql.connect(**self._config)
 
     def get(self):
+        """
+        Havuzdan bir bağlantı verir. Kuyruk boşsa yeni bağlantı açılır.
+        Alınan bağlantının hâlâ açık olduğu `ping` ile kontrol edilir; kopmuşsa yeniden bağlanır.
+        """
         try:
             conn = self._pool.get_nowait()
+            # Havuzdan alınan bağlantı uzun süre boşta kaldıysa sunucu tarafından kapatılmış olabilir. `ping` bunu kontrol eder ve yeniden bağlanır.
+            # DİKKAT: Yeniden bağlanma da başarısız olursa hata yakalanmadan çağırana gider.
             conn.ping(reconnect=True)
             return conn
         except Empty:
+            # Havuz boşsa yeni bağlantı açılır. Bu sınır yoktur: yoğun yükte çok sayıda bağlantı açılabilir.
             return self._new_conn()
 
     def release(self, conn):
+        """Kullanılan bağlantıyı havuza geri koyar. Havuz doluysa bağlantı kapatılır. Bu fonksiyon hata fırlatmaz."""
         try:
+            # Kuyruk doluysa `put_nowait` hata verir; bağlantı bu durumda kapatılır (havuz boyutu aşılmaz).
             self._pool.put_nowait(conn)
         except Exception:
             conn.close()
@@ -58,6 +71,7 @@ _pool: _DBPool | None = None
 _pool_lock = threading.Lock()
 
 def _get_pool() -> _DBPool:
+    """Tek bir havuz nesnesi (singleton) döndürür. İlk çağrıda oluşturulur. Birden çok thread aynı anda çağırsa bile tek havuz oluşması için kilit kullanılır (çift kontrollü kilit)."""
     global _pool
     if _pool is None:
         with _pool_lock:

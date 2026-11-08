@@ -1,10 +1,15 @@
 <!DOCTYPE html>
+<!-- DQ kurulum sihirbazı. Kişisel bilgisayarda DQ'yu adım adım kurmak için hazırlanmış TEK BAŞINA bir HTML sayfasıdır. -->
+<!-- Sunucuda çalışmaz; tarayıcıda açılır ve Jinja kullanmaz (base.html ile ilgisi yoktur). Kodda bu dosyaya bağlantı bulunmadı; yardımcı belge olarak kullanılır. -->
+<!-- Adımlar: hoş geldin, gereksinimler, MySQL, Python paketleri, .env ayarları, başlatma, Airflow (isteğe bağlı), BI bağlantısı (isteğe bağlı), bitiş. -->
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DQ — Kurulum Sihirbazı</title>
+<!-- Yazı tipleri (Syne, DM Mono) Google Fonts'tan yüklenir. -->
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<!-- Sayfa görünümü: renkler :root içinde değişken olarak tanımlanmıştır; adım kartları ve düzen bu blokta yer alır. -->
 <style>
   :root {
     --bg: #0a0f1e;
@@ -504,11 +509,13 @@
   <div class="main">
 
     <!-- Progress bar -->
+    <!-- İlerleme çubuğu. Genişliği goTo() fonksiyonu, aktif adıma göre yeniden hesaplar. -->
     <div class="progress-bar">
       <div class="progress-fill" id="progress" style="width:11%"></div>
     </div>
 
     <!-- ADIM 1: Hoş geldin -->
+    <!-- Adım 1 (karşılama). Her adım 'step-page' sınıflı bir bölümdür; yalnız 'active' olan görünür. Sol menüdeki numaralar da goTo() ile aynı adıma gider. -->
     <div class="step-page active" id="step-0">
       <div class="step-header">
         <div class="step-badge">BAŞLANGIÇ</div>
@@ -682,6 +689,8 @@
     </div>
 
     <!-- ADIM 5: Bağlantı ayarları -->
+    <!-- Adım 5: veritabanı bağlantı bilgileri (sunucu, port, kullanıcı, şifre, veritabanı adı). Her alan değiştikçe aşağıdaki .env önizlemesi updateEnv() ile anında güncellenir. -->
+    <!-- DİKKAT: Şifre alanının varsayılan değeri sayfanın kaynağına yazılmış durumda; kurulumdan sonra değiştirilmeli ve bu dosya paylaşılmamalıdır. -->
     <div class="step-page" id="step-4">
       <div class="step-header">
         <div class="step-badge">ADIM 4</div>
@@ -704,6 +713,7 @@
           <input type="text" id="db-user" value="root" oninput="updateEnv()">
         </div>
         <div class="field">
+          <!-- Şifre alanı: varsayılan değer HTML içinde sabit yazılıdır (bkz. üstteki DİKKAT). Gerçek kurulumda kendi şifrenizi girin. -->
           <label>Şifre</label>
           <input type="password" id="db-pass" value="root" oninput="updateEnv()">
         </div>
@@ -713,6 +723,7 @@
         </div>
       </div>
 
+      <!-- .env önizlemesi: dq_web klasöründeki .env dosyasının içeriğidir. Kopyala düğmesi bu metni panoya koyar. Metinde şifre de bulunur; ekran paylaşırken veya kopyalarken dikkat edin. -->
       <div class="card">
         <div class="card-title">.env dosyası içeriği — kopyala yapıştır</div>
         <div class="code-block">
@@ -735,6 +746,7 @@ APP_PORT=8000</code>
     </div>
 
     <!-- ADIM 6: Çalıştır -->
+    <!-- Adım 6: uygulamayı başlatma komutu (uvicorn). Komut sunucuyu 0.0.0.0 adresine bağlar; yani aynı ağdaki diğer bilgisayarlardan da erişilebilir olur. Güvenlik duvarını buna göre ayarlayın. -->
     <div class="step-page" id="step-5">
       <div class="step-header">
         <div class="step-badge">ADIM 5</div>
@@ -832,6 +844,7 @@ docker-compose restart</code>
     </div>
 
     <!-- ADIM 8: BI bağlantısı -->
+    <!-- Adım 8 (isteğe bağlı): SuperBI ya da Power BI gibi bir BI aracını DQ verisine bağlama. Sayfada geçen /api/results.csv adresi kod tarafında bulunamadı (yalnız /api/results ve /odata/Results var). TODO(kontrol): Bu bağlantı kontrol edilmeli. -->
     <div class="step-page" id="step-7">
       <div class="step-header">
         <div class="step-badge">ADIM 7 — OPSİYONEL</div>
@@ -904,6 +917,8 @@ docker-compose restart</code>
   </div>
 </div>
 
+<!-- Sayfa JavaScript'i: goTo(n) n. adımı açar, sol menü ve ilerleme çubuğunu günceller. next() / prev() ileri ve geri düğmeleri içindir. cp() metni panoya kopyalar ve düğmeyi kısa süre 'kopyalandı' gösterir. -->
+<!-- updateEnv() veritabanı alanlarından .env metnini üretir; cpEnv() bu metni kopyalar. Toplam adım sayısı 'total' değişkeninde (9) tutulur. -->
 <script>
 let current = 0;
 const total = 9;

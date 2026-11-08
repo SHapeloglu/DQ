@@ -21,7 +21,9 @@ from dq.connectors import (
 # ══════════════════════════════════════════════════════════════════════════
 
 class TestOracleConnectorUnit:
+    """OracleConnector için birim testleri. Gerçek Oracle gerekmez; sadece kayıt (registry) tablosunda olduğu kontrol edilir."""
     def test_registry_contains_oracle(self):
+        """CONNECTOR_REGISTRY içinde 'oracle' anahtarının bulunduğunu doğrular; aksi halde Oracle bağlantısı seçilemez."""
         assert "oracle" in CONNECTOR_REGISTRY
 
 
@@ -96,6 +98,7 @@ def test_db2_url_construction():
     conn = SqlAlchemyConnector(
         url="ibm_db_sa://ibm_db://db2admin:password@localhost:50000/TESTDB"
     )
+    # DİKKAT: 'or' yüzünden iki koşuldan biri tutması yeterlidir; URL'nin tam doğru olduğu kanıtlanmaz. (TODO(kontrol))
     assert "db2admin" in conn.url or "localhost" in conn.url
 
 
@@ -112,6 +115,7 @@ def test_db2_connector_connect():
     )
     try:
         result = conn.test_connection()
+        # DİKKAT: Bu assert her iki sonucu da kabul eder (True veya False), yani bağlantının başarılı olup olmadığını kanıtlamaz. Sadece test_connection() fonksiyonunun hata vermeden döndüğünü kontrol eder. (TODO(kontrol))
         assert result["success"] is True or result["success"] is False
         # Just check that test_connection() runs without crashing
     except Exception as e:

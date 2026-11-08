@@ -14,7 +14,9 @@ def _make_conn(row: dict):
 
 
 class TestProfileColumnNumeric:
+    """Sayısal kolonların profil testleri (satır sayısı, boş oranı, min/max/ortalama)."""
     def test_numeric_fields(self):
+        """Sayısal kolon için tip 'numeric' çıkmalı; satır sayısı 100, boş sayısı 2 → boş oranı %2.0; min/max/ortalama değerleri sorgudan olduğu gibi alınmalı."""
         conn = _make_conn({
             "row_count": 100, "null_count": 2, "dc": 80,
             "num_min": 1.0, "num_max": 99.0, "num_avg": 50.0,
@@ -44,7 +46,9 @@ class TestProfileColumnNumeric:
 
 
 class TestProfileColumnString:
+    """Metin (string) kolonların profil testleri."""
     def test_string_fields(self):
+        """Metin kolonda tip 'string', min/max uzunluk (3 ve 20) doğru alınmalı."""
         conn = _make_conn({
             "row_count": 50, "null_count": 0, "dc": 30,
             "num_min": None, "num_max": None, "num_avg": None,
@@ -57,6 +61,7 @@ class TestProfileColumnString:
         assert r["max_length"] == 20
 
     def test_string_single_query(self):
+        """Metin kolon profili de tek sorguda (execute 1 kez) yapılmalı."""
         conn = _make_conn({
             "row_count": 50, "null_count": 0, "dc": 30,
             "num_min": None, "num_max": None, "num_avg": None,
@@ -68,7 +73,9 @@ class TestProfileColumnString:
 
 
 class TestProfileColumnDate:
+    """Tarih kolonlarının profil testleri."""
     def test_date_fields(self):
+        """Tarih kolonunda tip 'date' çıkmalı; min/max değerleri (2023-01-01, 2024-12-31) metin olarak aynen dönmeli."""
         conn = _make_conn({
             "row_count": 20, "null_count": 1, "dc": 15,
             "num_min": None, "num_max": None, "num_avg": None,
@@ -81,6 +88,7 @@ class TestProfileColumnDate:
         assert r["max"] == "2024-12-31"
 
     def test_date_single_query(self):
+        """Tarih kolonu profili de tek sorguda yapılmalı."""
         conn = _make_conn({
             "row_count": 20, "null_count": 0, "dc": 20,
             "num_min": None, "num_max": None, "num_avg": None,
@@ -92,7 +100,9 @@ class TestProfileColumnDate:
 
 
 class TestProfileColumnEdge:
+    """Sınır durumları: boş tablo, tamamen boş kolon ve sorgu hatası."""
     def test_empty_table(self):
+        """Hiç satır yoksa row_count 0, boş oranı 0.0 (0'a bölme hatası yok) ve tip 'unknown' olmalı."""
         conn = _make_conn({
             "row_count": 0, "null_count": 0, "dc": 0,
             "num_min": None, "num_max": None, "num_avg": None,
@@ -105,6 +115,7 @@ class TestProfileColumnEdge:
         assert r["type"] == "unknown"
 
     def test_all_null(self):
+        """Tüm değerler NULL ise boş oranı %100 ve tip 'unknown' olmalı (tip çıkarılacak veri yok)."""
         conn = _make_conn({
             "row_count": 10, "null_count": 10, "dc": 0,
             "num_min": None, "num_max": None, "num_avg": None,
@@ -116,6 +127,7 @@ class TestProfileColumnEdge:
         assert r["type"] == "unknown"
 
     def test_execute_error(self):
+        """Sorgu hata verirse (bağlantı koptu vb.) profil çökmemeli; sonuçta 'error' alanı dönmeli."""
         conn = MagicMock()
         conn.execute.side_effect = Exception("DB down")
         r = profile_column(conn, "col")
@@ -123,22 +135,30 @@ class TestProfileColumnEdge:
 
 
 class TestDetectType:
+    """_detect_type: Python listesinden kolon tipini tahmin eden yardımcı fonksiyonun testleri."""
     def test_numeric(self):
+        """Sayı listesi [1,2,3] → 'numeric'."""
         assert _detect_type([1, 2, 3]) == "numeric"
 
     def test_string(self):
+        """Metin listesi ['alice','bob'] → 'string'."""
         assert _detect_type(["alice", "bob"]) == "string"
 
     def test_empty(self):
+        """Boş liste → 'unknown' (tahmin edilecek veri yok)."""
         assert _detect_type([]) == "unknown"
 
 
 class TestNormalizePattern:
+    """normalize_column_pattern: kolon adını desen adına çeviren yardımcı fonksiyonun testleri. Bu desenler kural önerileri için kullanılır."""
     def test_id(self):
+        """'customer_id' → '*_id' deseni (ID kolonları)."""
         assert normalize_column_pattern("customer_id") == "*_id"
 
     def test_email(self):
+        """'user_email' → '*email*' deseni (e-posta içeren kolonlar)."""
         assert normalize_column_pattern("user_email") == "*email*"
 
     def test_date(self):
+        """'created_at' → '*_date' deseni (tarih kolonları)."""
         assert normalize_column_pattern("created_at") == "*_date"

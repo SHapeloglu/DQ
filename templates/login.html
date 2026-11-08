@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+{# DQ GİRİŞ SAYFASI (auth.py → GET /login). Form /login/submit adresine POST eder; hatalıysa /login?error=... ile geri gelir. #}
+{# base.html'i genişletmez: üst menü giriş yapmamış kullanıcıya gösterilmemeli (menü bağlantıları giriş ister). #}
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DQ — Giriş</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center">
+    <form method="post" action="/login/submit" class="bg-white shadow rounded-lg p-8 w-full max-w-sm space-y-4">
+        <h1 class="text-2xl font-bold text-blue-600">DQ</h1>
+        <p class="text-sm text-gray-500">Veri Kalitesi Platformu — giriş yapın</p>
+        {# Hata metni Jinja tarafından otomatik kaçışlanır (XSS'e karşı); query parametresinden geldiği için ham basılmaz. #}
+        {% if error %}
+        <div class="bg-red-50 text-red-700 text-sm rounded p-2">{{ error }}</div>
+        {% endif %}
+        <div>
+            <label class="block text-sm font-medium text-gray-700" for="username">Kullanıcı adı</label>
+            <input id="username" name="username" type="text" required autofocus autocomplete="username"
+                   class="mt-1 w-full border border-gray-300 rounded px-3 py-2">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700" for="password">Parola</label>
+            <input id="password" name="password" type="password" required autocomplete="current-password"
+                   class="mt-1 w-full border border-gray-300 rounded px-3 py-2">
+        </div>
+        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium rounded px-4 py-2">Giriş</button>
+    </form>
+</body>
+</html>

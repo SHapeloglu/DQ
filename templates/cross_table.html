@@ -1,4 +1,7 @@
 <!DOCTYPE html>
+<!-- Cross-Table (tablolar arası) kontrollerin sonuçlarını gösteren tek başına bir HTML sayfasıdır. Kontrol, iki tablo arasındaki satır/değer tutarlılığını ölçer. -->
+<!-- routers/ui.py içindeki '/cross-table' route'u bu dosyayı döndürür; Jinja değişkeni kullanmaz. Veri /api/cross-table-results adresinden JavaScript ile çekilir. -->
+<!-- Bu sayfa base.html kullanmaz; üst menü yoktur. -->
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
@@ -13,6 +16,7 @@
   </style>
 </head>
 <body>
+<!-- Sayfa gövdesi: üstte filtreler, ortada pasta grafik ve son 20 çalışmanın trend grafiği, altta sonuç tablosu. -->
 <div class="container py-4">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h2>🔗 Cross-Table Kontroller</h2>
@@ -21,6 +25,7 @@
 
   <div class="row mb-3">
     <div class="col-md-4">
+      <!-- Kaynak filtresi. Değişince loadData() yeniden çalışır ve sonuçlar sunucudan tekrar istenir. -->
       <select id="sourceFilter" class="form-select" onchange="loadData()">
         <option value="">Tüm Kaynaklar</option>
       </select>
@@ -77,6 +82,9 @@
   </div>
 </div>
 
+<!-- Sayfa JavaScript'i. Akış: loadSources() kaynak listesini doldurur, sonra loadData() sonuçları çeker, tabloyu ve grafikleri çizer. Trend grafiğinde başarılı kontrol 1 (OK), başarısız 0 (FAIL) olarak çizilir. -->
+<!-- DİKKAT / TODO(kontrol): loadSources() '/sources' adresinden JSON bekliyor; ancak bu adres HTML sayfası döndürüyor. res.json() hata verir, loadData() çağrılmaz ve tablo 'Yükleniyor' yazısında kalır (anomali sayfasıyla aynı sorun). Kod değiştirilmedi. -->
+<!-- DİKKAT: Tablo satırları innerHTML ile ve kaçışsız yazılıyor (XSS riski). -->
 <script>
 let allRows = [];
 let pieChart, trendChart;

@@ -1,5 +1,7 @@
 # DQ — Data Quality Platform
 
+> **Durum notu (2026-10-25 denetimi):** Gerçek veritabanı bağlantısı ortak MySQL'deki **uygulama kullanıcısıdır** (`DB_HOST=mysql-ortak`, `DB_USER=uygulama`), root değildir; README'deki `DB_USER=root` ve "MySQL root şifresi" ifadeleri eskidir. Kurulum için dışarıda oluşturulmuş `ortak-db` Docker ağı ve `mysql-ortak` gerekir. Yönlendirici dosyaları kökte değil `routers/` altındadır (`routers/checks.py`, `scripts.py`, `sources.py`, `ui.py`).
+
 > **Self-hosted, açık kaynak veri kalitesi platformu.**  
 > PII/KVKK tespiti, anomali analizi ve 19 assert tipiyle rakip ticari çözümlere kıyasla **%99 daha düşük toplam sahip olma maliyeti.**
 
@@ -512,7 +514,7 @@ DQ/
 ├── tests/                     # pytest test suite (196 test)
 ├── scripts/                   # Yardımcı scriptler
 ├── secrets/                   # Credential yönetimi
-├── docs/                      # Mimari + benchmark dökümantasyonu
+├── docs/                      # Benchmark + session başlangıç notları
 ├── database.py                # MySQL şema init
 ├── profiler.py                # PII tespiti + profilleme
 ├── extensions.py              # Alert manager (Slack/email/webhook)
@@ -551,5 +553,5 @@ DQ/
   <br>
   <a href="https://github.com/SHapeloglu/DQ">GitHub</a> ·
   <a href="docs/BENCHMARK.md">Benchmark</a> ·
-  <a href="docs/ARCHITECTURE.md">Mimari</a>
+  <a href="architect.md">Mimari</a>
 </div>

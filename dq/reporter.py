@@ -33,6 +33,7 @@ _BOLD   = "\033[1m"
 
 
 def _colorize(text: str, color: str, *, force: bool = False) -> str:
+    """Metni ANSI renk koduyla sarar. Çıktı bir terminal değilse (ör. dosyaya yazılıyorsa) renk eklenmez; `force=True` ile zorlanabilir."""
     if not sys.stdout.isatty() and not force:
         return text
     return f"{color}{text}{_RESET}"

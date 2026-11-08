@@ -1,4 +1,6 @@
 {% extends "base.html" %}
+{# Run geçmişi listesi (/runs). routers/ui.py içindeki 'runs' route'u açar; değişken: runs. #}
+{# Her 'run', Airflow'daki bir DQ görevinin (DQOperator) bir çalıştırma sonucudur. Ayrıntısı /runs/{id} sayfasında görünür. #}
 {% block title %}DQ — Run Geçmişi{% endblock %}
 
 {% block content %}
@@ -25,6 +27,7 @@
             <tr class="hover:bg-gray-50">
                 <td class="px-6 py-4">
                     <span class="flex items-center gap-2">
+                        {# Durum: run.status 'pass' ise yeşil PASS, değilse kırmızı FAIL gösterilir. #}
                         <span class="w-2 h-2 rounded-full {% if run.status == 'pass' %}bg-green-400{% else %}bg-red-400{% endif %}"></span>
                         <span class="text-sm font-medium {% if run.status == 'pass' %}text-green-700{% else %}text-red-700{% endif %}">
                             {{ 'PASS' if run.status == 'pass' else 'FAIL' }}
@@ -38,6 +41,7 @@
                 </td>
                 <td class="px-6 py-4">
                     <div class="flex items-center gap-2">
+                        {# Çubuk, geçen kontrollerin yüzdesini gösterir. Toplam kontrol sayısı 0 ise çubuk sıfır çizilir (bölme hatasını önlemek için). #}
                         <div class="flex-1 bg-gray-200 rounded-full h-1.5 w-24">
                             <div class="h-1.5 rounded-full {% if run.status == 'pass' %}bg-green-500{% else %}bg-red-500{% endif %}"
                                  style="width: {{ (run.passed / run.total * 100)|int if run.total else 0 }}%"></div>

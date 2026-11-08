@@ -1,4 +1,7 @@
 {% extends "base.html" %}
+{# Özel Python doğrulama scripti ekleme / düzenleme formu. routers/scripts.py içindeki '/scripts/new' ve '/scripts/{id}/edit' route'ları kullanır. #}
+{# Değişkenler: script (yalnız düzenlemede dolu), error (kayıt hatası mesajı). #}
+{# DİKKAT / TODO(kontrol): Sayfa Bootstrap sınıfları kullanıyor ama base.html yalnız Tailwind yüklüyor; görünüm eksik olabilir. Form içinde CSRF belirteci yok. #}
 
 {% block title %}{% if script %}Script Düzenle{% else %}Yeni Script{% endif %}{% endblock %}
 
@@ -32,12 +35,14 @@
 
                 <div class="mb-3">
                     <label class="form-label">Python Kodu</label>
+                    {# Kullanıcının yazdığı Python kodu. Bu kod sunucuda çalıştırıldığı için (test ve doğrulama sırasında) güvenlik kısıtları sunucu tarafında olmalıdır. #}
                     <textarea name="code" class="form-control" rows="15" required 
                               style="font-family: monospace;">{{ script.code or 'def check(value):\n    return value > 0' }}</textarea>
                     <small class="text-muted d-block mt-2">
                         <strong>Örnek:</strong>
                         <pre>def check(value):
     return float(value) > 0 and float(value) < 1000</pre>
+                        {# 'Yasaklı' listesi yalnız kullanıcıya bilgi vermek içindir; gerçek kısıtlama bu metinle değil, sunucudaki kod kontrolüyle yapılmalıdır. #}
                         Desteklenen: math, len, str, int, float, isinstance, min, max, vb.
                         Yasaklı: os, subprocess, sys, open, eval, exec
                     </small>
@@ -52,6 +57,7 @@
                 {% if script %}
                 <div class="mb-3">
                     <label class="form-check-label">
+                        {# Tarayıcılar işaretsiz kutuyu göndermez. Bu yüzden önce değeri 0 olan gizli alan gönderilir; kutu işaretliyse 1 değeri ikinci alan olarak üstüne yazılır. #}
                         <input type="hidden" name="is_active" value="0">
                         <input type="checkbox" name="is_active" value="1" class="form-check-input"
                                {% if script.is_active %}checked{% endif %}>
@@ -61,6 +67,7 @@
                 {% endif %}
 
                 <div class="mb-3">
+                    {# Test Et düğmesi ile yan paneldeki Çalıştır düğmesi aynı işi yapar: kodu /api/scripts/test adresine gönderir ve sonucu sayfada gösterir. Kaydetmez. #}
                     <button type="button" class="btn btn-secondary" id="testBtn">🧪 Test Et</button>
                     <button type="submit" class="btn btn-primary">💾 Kaydet</button>
                     <a href="/scripts" class="btn btn-outline-secondary">← Geri</a>
@@ -105,6 +112,8 @@
     </div>
 </div>
 
+{# Sayfa JavaScript'i: başlangıç şablonlarını textarea'ya yükler ve test isteğini gönderir. #}
+{# DİKKAT: Test sonucu ve hata metni innerHTML ile yazılıyor; metin HTML olarak çalışabilir (XSS riski). Kod değiştirilmedi, yalnız bilgi amaçlı not. #}
 <script>
 const templates = {
     range: `def check(value):

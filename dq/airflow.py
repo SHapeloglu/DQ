@@ -74,6 +74,7 @@ class DQOperator(BaseOperator):
         api_token: str | None = None,
         **kwargs,
     ):
+        """Operatör ayarlarını saklar. `config` zorunludur; diğer ayarların varsayılan değerleri vardır. `super().__init__` ile Airflow'un temel ayarları (task_id vb.) da alınır."""
         super().__init__(**kwargs)
         self.config       = config
         self.mode         = mode
@@ -111,6 +112,7 @@ class DQOperator(BaseOperator):
             if failed:
                 names = ", ".join(r.name if hasattr(r, "name")
                                   else r.metric_name for r in failed)
+                # `fail_on_error` açıksa ve başarısız kontrol varsa görev hata ile biter. Airflow bu görevi ayara göre yeniden deneyebilir.
                 raise ValueError(f"DQ başarısız — {len(failed)} check kaldı: {names}")
 
         return payload
@@ -118,6 +120,10 @@ class DQOperator(BaseOperator):
     # ── İç metodlar ───────────────────────────────────────────────────────────
 
     def _run_checks(self):
+        """
+        Ayara göre kontrolleri çalıştırır: `contract` modunda kontratı doğrular, `checks` modunda check'leri çalıştırır ve mümkünse anomali tespiti ekler.
+        Anomali tespiti hata verirse yalnız uyarı yazılır; check sonuçları yine döner.
+        """
         if self.mode == "contract":
             import tomllib
             with open(self.config, "rb") as f:
@@ -156,9 +162,11 @@ class DQOperator(BaseOperator):
                                          a.metric_name, a.score, a.method, a.message)
             except Exception as exc:
                 self.log.warning("AnomalyDetector çalıştırılamadı: %s", exc)
+                # Anomali tespiti başarısız olursa görev durmaz; boş liste kullanılır.
                 anomaly_results = []
             return results + anomaly_results
     def _log_results(self, results) -> None:
+        """Her sonucu Airflow log'una PASS/FAIL olarak yazar. Hem check hem anomali sonuçları desteklenir."""
         for r in results:
             name   = getattr(r, "name", None) or getattr(r, "metric_name", "?")
             passed = getattr(r, "passed", None)
@@ -185,7 +193,7 @@ class DQOperator(BaseOperator):
                 except Exception:
                     d = r.__dict__.copy()
                 d = {k: v for k, v in d.items() if not callable(v)}
-            items.append(d)
+            # Her sonuç listeye bir kez eklenir. Önceden iki kez ekleniyordu; bu da XCom ve API'ye çift veri gönderiyordu.
             items.append(d)
 
         return {

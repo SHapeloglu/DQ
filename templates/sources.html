@@ -1,4 +1,7 @@
 {% extends "base.html" %}
+{# Veri kaynaklarının (bağlantı tanımlarının) listesi. routers/sources.py içindeki '/sources' route'u açar. #}
+{# Değişkenler: sources (her kaynak için ad, tür, kural sayısı, oluşturulma tarihi), msg (üstte gösterilen bilgi mesajı). #}
+{# Yeni kaynak için /sources/new sayfasına gidilir. #}
 {% block title %}DQ — Kaynaklar{% endblock %}
 
 {% block content %}
@@ -51,6 +54,7 @@
                 <td class="px-6 py-4 text-right flex justify-end gap-2">
                     <a href="/checks?source_id={{ s.id }}" class="text-xs text-blue-600 hover:underline">Kurallar</a>
                     <a href="/sources/{{ s.id }}/edit" class="text-xs text-gray-600 hover:underline">Düzenle</a>
+                    {# Kaynağı silen form (POST /sources/{id}/delete). Silme geri alınamaz; onay penceresi yalnız tarayıcıda çıkar. Kaynağa bağlı kuralların akıbeti sunucu tarafında belirlenir. #}
                     <form method="post" action="/sources/{{ s.id }}/delete" class="inline"
                           onsubmit="return confirm('Silmek istediğinden emin misin?')">
                         <button class="text-xs text-red-500 hover:underline">Sil</button>

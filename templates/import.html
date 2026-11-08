@@ -1,4 +1,7 @@
 {% extends "base.html" %}
+{# TOML içe aktarma sayfası. routers/ui.py içindeki '/import' route'ları kullanır (GET: formu gösterir, POST: dosyayı işler). #}
+{# Değişkenler: error (hata mesajı), msg (başarı mesajı). #}
+{# TOML dosyasındaki kaynak ve kurallar veritabanına aktarılır; ayrıntılar toml_import.py içinde. #}
 {% block title %}DQ — TOML Import{% endblock %}
 
 {% block content %}
@@ -20,6 +23,7 @@
     <!-- Upload formu -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h2 class="font-semibold text-gray-900 mb-4">Dosya Yükle</h2>
+        {# Form dosyayı çok parçalı (multipart/form-data) olarak gönderir; dosya olmadan bu biçim çalışmaz. Dosya 'file' adıyla gider. #}
         <form method="post" action="/import" enctype="multipart/form-data">
             <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition cursor-pointer"
                  onclick="document.getElementById('tomlFile').click()">
@@ -29,6 +33,7 @@
                 </svg>
                 <p class="text-sm text-gray-500">TOML dosyasını buraya sürükle veya tıkla</p>
                 <p class="text-xs text-gray-400 mt-1">.toml uzantılı dosyalar</p>
+                {# 'accept' yalnız dosya seçme penceresini .toml ile sınırlar. Asıl dosya kontrolü sunucuda yapılmalıdır; tarayıcıda bu kontrol atlanabilir. #}
                 <input type="file" id="tomlFile" name="file" accept=".toml" class="hidden"
                        onchange="document.getElementById('fileName').textContent = this.files[0]?.name || ''">
             </div>
@@ -43,6 +48,7 @@
     <!-- TOML format rehberi -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h2 class="font-semibold text-gray-900 mb-4">TOML Format Rehberi</h2>
+        {# Örnek TOML dosyası. [source] bölümü kaynağı tanımlar; her [[checks]] bloğu bir kuralı ekler. 'assert' kontrol tipini, 'value' karşılaştırılacak değeri belirler. #}
         <pre class="bg-gray-50 rounded-lg p-4 text-xs font-mono text-gray-700 overflow-auto leading-relaxed">[source]
 type = "csv"
 path = "/opt/airflow/dags/orders.csv"
