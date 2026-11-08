@@ -15,6 +15,10 @@ from typing import Any, Callable
 
 @dataclass
 class CheckResult:
+    """
+    Tek bir check'in sonucu. `passed` True ise kural geçti (PASS), False ise kaldı (FAIL).
+    `value` sorgudan gelen ölçülen değer, `expected` ise beklenen eşik/açıklamadır. Hata olursa `message` dolar.
+    """
     name: str
     passed: bool
     value: Any          # ölçülen değer
@@ -23,6 +27,7 @@ class CheckResult:
 
     @property
     def status(self) -> str:
+        """Sonucu okunabilir metin olarak verir: geçtiyse "PASS", kaldıysa "FAIL"."""
         return "PASS" if self.passed else "FAIL"
 
 
@@ -49,36 +54,63 @@ class Check:
 # ── Yerleşik assertion'lar (sık kullanılan desenler) ─────────────────────────
 
 def is_not_null(value) -> bool:
+    # DİKKAT: 0 de 'boş' sayılıyor. Sayısal 0 geçerli bir değerse bu kontrol yerine `not_empty` ya da `greater_than` düşünün.
+    """
+    Değerin boş olmadığını kontrol eder (None ve 0 değilse True).
+    DİKKAT: sayısal 0 da 'boş' sayılır. 0 geçerli bir değerse bu assertion yanlış FAIL verir.
+    """
     return value is not None and value != 0
 
 def less_than(threshold: float) -> Callable:
+    """
+    Değerin `threshold` değerinden küçük olduğunu kontrol eden bir kontrol fonksiyonu döndürür.
+    Değer sayıya çevrilemezse (örn. None) hata oluşur; bu da check'in FAIL olmasına yol açar.
+    """
     return lambda v: float(v) < threshold
 
 def greater_than(threshold: float) -> Callable:
+    """Değerin `threshold` değerinden büyük olduğunu kontrol eden bir kontrol fonksiyonu döndürür. Sayıya çevrilemeyen değerde hata oluşur."""
     return lambda v: float(v) > threshold
 
 def between(low: float, high: float) -> Callable:
+    """Değerin low ile high arasında (sınırlar dahil) olduğunu kontrol eden fonksiyonu döndürür."""
     return lambda v: low <= float(v) <= high
 
 def equals(expected) -> Callable:
+    """Değerin `expected` ile birebir aynı olduğunu kontrol eden fonksiyonu döndürür. Tip de karşılaştırılır (ör. 1 ile 1.0 eşittir, ama "1" değildir)."""
     return lambda v: v == expected
 
 def row_count_at_least(n: int) -> Callable:
+    """Satır sayısının en az `n` olduğunu kontrol eder. Değer `int`e çevrilir."""
     return lambda v: int(v) >= n
 def row_count_between(min_n: int, max_n: int) -> Callable:
+    """Satır sayısının min_n ile max_n arasında (dahil) olduğunu kontrol eder."""
     return lambda v: min_n <= int(v) <= max_n
 def not_empty(value) -> bool:
+    """Değerin boş metin olmadığını kontrol eder. Boşluklar silinir; "   " de boş sayılır. None da boş sayılır."""
     return value is not None and str(value).strip() != ""
 def accepted_values(allowed: list) -> Callable:
+    """Değerin izin verilen listede olduğunu kontrol eder (ör. durum kodları için)."""
     return lambda v: v in allowed
 def regex_match(pattern: str) -> Callable:
+    """
+    Değerin (metne çevrilerek) `pattern` düzenli ifadesiyle eşleşip eşleşmediğini kontrol eder.
+    Değer None ise FAIL döner.
+    """
     import re
+    # DİKKAT: re.match yalnız metnin BAŞINDAN eşleşir. Tam eşleşme için pattern sonuna `$` ya da `\Z` eklenmelidir.
     return lambda v: bool(re.match(pattern, str(v))) if v is not None else False
 def freshness_hours(max_hours: float) -> Callable:
+    """
+    Bir tarih/saat değerinin 'taze' olduğunu kontrol eder: şu andan en fazla `max_hours` saat önce olmalı.
+    Değer metinse ISO formatında (ör. 2026-10-24T10:00:00) olmalıdır. Saat dilimi yoksa UTC kabul edilir.
+    """
     from datetime import datetime, timezone
     def _check(v) -> bool:
+        """Tarihi okur, UTC'ye göre aradaki farkı saat cinsinden hesaplar ve `max_hours` ile karşılaştırır. None ise FAIL döner."""
         if v is None:
             return False
+        # Tarih metinse ISO formatına çevrilir; `datetime.fromisoformat` bu formatı bekler.
         if isinstance(v, str):
             v = datetime.fromisoformat(v)
         now = datetime.now(timezone.utc)
@@ -129,6 +161,10 @@ def schema_check(expected_columns: dict) -> Callable:
     import json
 
     def _check(v) -> bool:
+        """
+        Dönen kolon listesinde (JSON metin ya da liste) beklenen her kolonun var olup olmadığını ve tipinin uyup uymadığını kontrol eder.
+        Döndürdüğü veri boşsa veya biçimi bozuksa hata oluşur ve check FAIL olur.
+        """
         if v is None:
             return False
         if isinstance(v, str):
@@ -145,6 +181,7 @@ def schema_check(expected_columns: dict) -> Callable:
             if col_lower not in actual:
                 return False
             if expected_type is not None:
+                # DİKKAT: tip kontrolü 'içerir' mantığıyla yapılır. Örn. beklenen "varchar" ise "varchar2" de kabul edilir.
                 if expected_type.lower() not in actual[col_lower]:
                     return False
         return True
@@ -163,6 +200,7 @@ def custom_sql(expected) -> Callable:
               None → değer None değilse geçer
     """
     def _check(v) -> bool:
+        """Sorgunun döndürdüğü değeri `expected` ile karşılaştırır: sayı ise eşitlik, [alt, üst] ise aralık, None ise 'boş değil' kontrolü yapar."""
         if expected is None:
             return v is not None
         if isinstance(expected, (list, tuple)) and len(expected) == 2:
@@ -184,6 +222,7 @@ def volume_anomaly(max_pct_change: float = 50.0, baseline: float | None = None) 
     Örnek: volume_anomaly(max_pct_change=30, baseline=10000)
     """
     def _check(v) -> bool:
+        """Mevcut satır sayısını (float) alır ve yukarıdaki kurala göre True/False döndürür. Baseline 0 ise, satır sayısının da 0 olması beklenir."""
         current = float(v)
         if baseline is None:
             return current > 0
@@ -214,14 +253,25 @@ def duplicate_row(threshold: int = 0) -> Callable:
 
 
 def zscore_anomaly(metric_name: str, store, max_zscore: float = 3.0, min_samples: int = 5) -> Callable:
+    """
+    Son ölçümlere göre z-skor (ortalamadan kaç standart sapma uzak olduğu) kontrolü yapar.
+    Geçmiş `store` (MetricStore) üzerinden okunur. Yeterli geçmiş yoksa (`min_samples`) kontrol PASS döner.
+    `max_zscore=3.0` standart bir eşiktir: değer ortalamadan 3 standart sapmadan fazla uzaksa anormal sayılır.
+    """
     import math
     def _check(v) -> bool:
+        """
+        Son 100 ölçümün ortalama ve standart sapmasını hesaplar; yeni değerin z-skorunu bulur ve eşikle karşılaştırır.
+        Sapma 0 ise (tüm değerler aynı) bölme hatası olmasın diye PASS döner.
+        """
         values = store.get_recent_values(metric_name, n=100)
+        # Yeterli geçmiş yoksa kontrol PASS döner. Sistemin ilk günlerinde yanlış alarm üretmemesi için böyle yapılır.
         if len(values) < min_samples:
             return True
         mean = sum(values) / len(values)
         variance = sum((x - mean) ** 2 for x in values) / len(values)
         std = math.sqrt(variance)
+        # Tüm geçmiş değerler aynıysa standart sapma 0 olur ve z-skor hesaplanamaz. Bu durumda PASS döner.
         if std == 0:
             return True
         z = abs(float(v) - mean) / std
@@ -239,6 +289,11 @@ def cross_table_check(connector_b, query_b: str, comparator: str = "equals", tol
     Ana sorgu (query_a) CheckEngine üzerinden çalışır; bu assertion value_a alır.
     """
     def _check(value_a) -> bool:
+        # İkinci kaynak da `with` ile açılır ve iş bitince otomatik kapatılır.
+        """
+        İki kaynaktaki değeri karşılaştırır. `value_a` ana sorgudan gelir; ikinci değer `connector_b` üzerinde `query_b` sorgusu ile alınır.
+        İkinci kaynak sorguda satır dönmezse FAIL döner.
+        """
         with connector_b as conn:
             rows = conn.execute(query_b)
             if not rows:
@@ -270,6 +325,7 @@ def distribution_check(expected_mean: float, expected_std: float, tolerance_pct:
     tolerance_pct: izin verilen sapma yüzdesi (ör. 10.0 → %10)
     """
     def _check(v) -> bool:
+        """Dönen değeri ayrıştırır ve her ölçü için yüzde sapmayı hesaplar. Beklenen değer 0 ise bölme hatası olmasın diye 1 kullanılır."""
         if v is None:
             return False
         s = str(v)
@@ -295,6 +351,7 @@ def trend_check(metric_name: str, store, window: int = 7, max_pct_change: float 
     Yetersiz geçmişte her zaman PASS döner.
     """
     def _check(v) -> bool:
+        """Geçmiş değerleri okur (eskiden yeniye sıralı), iki pencerenin ortalamasını alır ve yüzde değişimi `max_pct_change` ile karşılaştırır."""
         values = store.get_recent_values(metric_name, n=window * 2)
         if len(values) < window * 2:
             return True  # yetersiz geçmiş
@@ -331,8 +388,15 @@ def custom_script_assertion(code: str, function_name: str = "check"):
     
     # Tehlikeli imports ve fonksiyonlar
     FORBIDDEN_IMPORTS = {"os", "subprocess", "sys", "shutil", "pathlib", "socket", "urllib", "requests"}
-    FORBIDDEN_NAMES = {"eval", "exec", "compile", "__import__", "open", "input", "print"}
-    
+    # DİKKAT: getattr, __class__ gibi dolaylı yollar artık engelleniyor. Ama bu exec tabanlı sandbox
+    # hâlâ tam izolasyon değil: CPU/bellek/sonsuz döngü sınırı yok, str.format ile öznitelik okunabilir.
+    # Gerçek çözüm ayrı süreç veya konteyner (bkz. task.md).
+    FORBIDDEN_NAMES = {
+        "eval", "exec", "compile", "__import__", "open", "input", "print",
+        "getattr", "setattr", "delattr", "globals", "locals", "vars", "dir",
+        "breakpoint", "help", "memoryview",
+    }
+
     for node in ast.walk(tree):
         # Import kontrolleri
         if isinstance(node, ast.Import):
@@ -340,17 +404,24 @@ def custom_script_assertion(code: str, function_name: str = "check"):
                 module = alias.name.split('.')[0]
                 if module in FORBIDDEN_IMPORTS:
                     raise ValueError(f"Yasaklı import: {module}")
-        
+
         if isinstance(node, ast.ImportFrom):
             module = node.module.split('.')[0] if node.module else ""
             if module in FORBIDDEN_IMPORTS:
                 raise ValueError(f"Yasaklı import: {module}")
-        
-        # Function call kontrolleri
-        if isinstance(node, ast.Call):
-            if isinstance(node.func, ast.Name):
-                if node.func.id in FORBIDDEN_NAMES:
-                    raise ValueError(f"Yasaklı fonksiyon: {node.func.id}")
+
+        # Öznitelik kontrolü: `obj.__class__`, `obj._x` gibi alt çizgiyle başlayan erişimler.
+        # Neden: `().__class__.__bases__[0].__subclasses__()` zinciriyle tüm sınıflara
+        # ulaşılıp sandbox dışına çıkılabilir. Kullanıcı kodunda bu tür alanlara gerek yoktur.
+        if isinstance(node, ast.Attribute) and node.attr.startswith("_"):
+            raise ValueError(f"Yasaklı öznitelik: {node.attr}")
+
+        # İsim kontrolü: hem `eval(...)` gibi çağrıları hem `f = getattr` gibi değer olarak
+        # kullanımları yakalar. Neden: yasaklı bir fonksiyon değişkene atanıp sonra
+        # çağrılabilir; bu yüzden sadece ast.Call değil her isim düğümüne bakıyoruz.
+        # Kullanıcının kendi değişken adları (check, value) bu listede değildir.
+        if isinstance(node, ast.Name) and node.id in FORBIDDEN_NAMES:
+            raise ValueError(f"Yasaklı fonksiyon: {node.id}")
     
     # ── Güvenli execution ───────────────────────────────────────────────────
     safe_builtins = {
@@ -366,6 +437,7 @@ def custom_script_assertion(code: str, function_name: str = "check"):
     namespace = {'__builtins__': safe_builtins}
     
     try:
+        # DİKKAT: Kullanıcı kodu burada çalıştırılır. `__builtins__` kısıtlı ama tek başına yeterli değil; yukarıdaki nota bak.
         exec(code, namespace)
     except Exception as e:
         raise ValueError(f"Kod çalıştırılırken hata: {e}")
@@ -380,6 +452,7 @@ def custom_script_assertion(code: str, function_name: str = "check"):
     
     # ── Assertion fonksiyonu dön ────────────────────────────────────────────
     def assertion(value):
+        """Kullanıcı fonksiyonunu değerle çağırır. Çalışma sırasında hata olursa exception fırlatmaz, sadece False döner (FAIL)."""
         try:
             result = user_fn(value)
             return bool(result)
@@ -402,14 +475,17 @@ class CheckEngine:
     """
 
     def __init__(self, connector):
+        """Motoru bir connector (veri kaynağı bağlantısı) ile oluşturur. Check listesi boş başlar."""
         self.connector = connector
         self._checks: list[Check] = []
 
     def add(self, check: Check) -> "CheckEngine":
+        """Tek bir check'i listeye ekler. Kendini döndürür; böylece `add(...).add(...)` gibi zincirleme yazılabilir."""
         self._checks.append(check)
         return self   # zincirleme: engine.add(...).add(...)
 
     def add_many(self, checks: list[Check]) -> "CheckEngine":
+        """Birden çok check'i bir seferde listeye ekler. Kendini döndürür (zincirleme)."""
         self._checks.extend(checks)
         return self
 
@@ -430,8 +506,11 @@ class CheckEngine:
         results = []
         with self.connector as conn:
             def _run_safe(check):
+                # Tüm check'ler tek bir connector'ı paylaşır ve bağlantılar aynı anda kullanılmamalıdır; bu yüzden kilit kullanılır. Sonuç olarak check'ler pratikte sırayla çalışır.
+                """Bir check'i, ortak `lock` kilidi altında çalıştırır. Kilit sayesinde iki check aynı bağlantıyı aynı anda kullanmaz."""
                 with lock:
                     return self._run_one(conn, check)
+            # 4 = en fazla aynı anda çalışacak iş parçacığı sayısı. Kilit nedeniyle sorgular yine sırayla koşar; bu değer sadece üst sınırdır.
             max_workers = min(4, len(targets)) if targets else 1
             with ThreadPoolExecutor(max_workers=max_workers) as pool:
                 futures = {pool.submit(_run_safe, c): c for c in targets}
@@ -440,6 +519,10 @@ class CheckEngine:
         return results
 
     def _run_one(self, conn, check: Check) -> CheckResult:
+        """
+        Tek bir check'i çalıştırır: sorguyu koşar, ilk satırın ilk sütununu alır ve assertion ile değerlendirir.
+        Sorgu satır dönmezse ya da her hata durumunda exception yakalanır ve passed=False olan bir sonuç döner (uygulama çökmez).
+        """
         try:
             rows = conn.execute(check.query)
             # Skaler değer: tek satır tek sütun beklenir

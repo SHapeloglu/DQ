@@ -1,3 +1,4 @@
+# TODO(kontrol): Modül açıklamasında 'n < 8 z-score, n >= 8 Holt-Winters' yazıyor; kod ise <5 z-score, 5-13 EWMA, >=14 Holt-Winters kullanıyor. Hangisinin doğru olduğu kontrol edilmeli.
 """
 AnomalyDetector — MetricStore'daki geçmiş verilere bakarak mevcut değerin
 anormal olup olmadığını saptar.
@@ -21,6 +22,10 @@ import statistics
 
 @dataclass
 class AnomalyResult:
+    """
+    Tek bir metrik için anomali sonucu.
+    `is_anomaly` True ise değer normal aralığın dışındadır. `lower_bound`/`upper_bound` beklenen aralığın sınırlarıdır; `method` hangi yöntemin kullanıldığını söyler.
+    """
     metric_name:  str
     current:      float | None
     is_anomaly:   bool
@@ -33,6 +38,7 @@ class AnomalyResult:
 
     @property
     def status(self) -> str:
+        """Sonucu metin olarak verir: anomali varsa "ANOMALY", yoksa "OK"."""
         return "ANOMALY" if self.is_anomaly else "OK"
 
 
@@ -54,6 +60,7 @@ class AnomalyResult:
 # ── Yardımcı: geçmiş değerleri listele ───────────────────────────────────────
 
 def _values(history: list[dict]) -> list[float]:
+    """Geçmiş kayıt listesinden (`{run_at, value}` sözlükleri) yalnız sayısal değerleri çıkarır; None değerler atlanır."""
     return [h["value"] for h in history if h["value"] is not None]
 
 
@@ -90,6 +97,10 @@ def _detect_trend(hist: list[float]) -> str:
 
 def _zscore_detect(name: str, current: float, hist: list[float],
                    threshold: float) -> AnomalyResult:
+    """
+    Basit z-skor yöntemi (az veri için). Ortalama ve standart sapma ile değerin kaç sigma uzakta olduğuna bakar.
+    Geçmiş 2'den azsa anomali yok (False) kabul edilir. Standart sapma 0 ise 1e-9 kullanılır (sıfıra bölme olmasın).
+    """
     if len(hist) < 2:
         return AnomalyResult(name, current, False, 0.0, "zscore",
                              message="Yeterli geçmiş veri yok (< 2)")
@@ -154,6 +165,10 @@ def _ewma_detect(name: str, current: float, hist: list[float],
 
 def _holt_winters_detect(name: str, current: float, hist: list[float],
                          threshold: float) -> AnomalyResult:
+    """
+    Holt-Winters (üstel düzleştirme, trend + mevsimsel) ile bir sonraki değeri tahmin eder ve gerçek değerle farkına bakar. Çok veri gerektirir.
+    statsmodels kurulu değilse z-skor yöntemine geri döner. Model hatasında anomali yok (False) sonucu ve hata mesajı döner.
+    """
     try:
         from statsmodels.tsa.holtwinters import ExponentialSmoothing
         import numpy as np
@@ -171,7 +186,7 @@ def _holt_winters_detect(name: str, current: float, hist: list[float],
             seasonal=seasonal_type,
             seasonal_periods=seasonal_periods,
             initialization_method="estimated",
-        ).fit(optimized=True, disp=False)
+        ).fit(optimized=True)
 
         # Bir adım ilerisi tahmin
         forecast = float(model.forecast(1)[0])
@@ -192,7 +207,7 @@ def _holt_winters_detect(name: str, current: float, hist: list[float],
             lower_bound  = round(lower, 4),
             upper_bound  = round(upper, 4),
             message      = f"tahmin={forecast:.2f}, hata={error:.2f}, eşik={threshold}",
-        trend_direction = _detect_trend(hist_vals),
+        trend_direction = _detect_trend(hist),
     )
 
     except ImportError:
@@ -217,6 +232,7 @@ class AnomalyDetector:
     """
 
     def __init__(self, store, threshold: float = 3.0, history_days: int = 30):
+        """Dedektörü bir MetricStore ile oluşturur. `threshold` kaç standart sapmadan sonra anormal sayılacağını (varsayılan 3.0), `history_days` kaç günlük geçmişin kullanılacağını belirler."""
         self.store        = store
         self.threshold    = threshold
         self.history_days = history_days
@@ -250,6 +266,7 @@ class AnomalyDetector:
         CheckResult / herhangi bir 'name + value' listesi için toplu tespit.
         Önce mevcut değerleri kaydeder, sonra her birini analiz eder.
         """
+        # DİKKAT: Değerler önce kaydedilir, sonra analiz edilir. Bu yüzden her değer kendi geçmişinin parçası olur ve sapma olduğundan az görünebilir.
         self.store.record_results(results)
         return [
             self.detect(r.name, r.value)

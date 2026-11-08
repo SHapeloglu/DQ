@@ -26,8 +26,13 @@ def register_routes(app: FastAPI, templates: Jinja2Templates):
 
     # ── Dashboard ─────────────────────────────────────────────────────────────
 
+    """
+    Ek route'ları (dashboard, TOML dışa aktarma, kural aç/kapa, uyarı ayarları, migrasyon) verilen `app` nesnesine kaydeder.
+    Bu fonksiyon main.py'den bir kez çağrılır; kendisi bir şey döndürmez.
+    """
     @app.get("/dashboard", response_class=HTMLResponse)
     def dashboard(request: Request):
+        """Ana istatistik dashboard'unu hazırlar: toplam çalıştırma, başarı oranı, bugünkü kontrol/hata sayıları, son 14 gün trendi, kaynak bazlı başarı oranı ve en çok başarısız olan 10 kural."""
         conn = get_conn()
         try:
             with conn.cursor() as cur:
@@ -252,6 +257,10 @@ def register_routes(app: FastAPI, templates: Jinja2Templates):
         smtp_pass:      str = Form(""),
         alert_trigger:  str = Form("any_failure"),
     ):
+        """
+        Uyarı ayarlarını kaydeder (Slack, webhook, e-posta, SMTP). Kayıt varsa günceller, yoksa ekler; sonra ayar sayfasına yönlendirir.
+        SMTP şifresi boş gönderilirse mevcut şifre korunur.
+        """
         conn = get_conn()
         try:
             _ensure_alert_table(conn)
@@ -264,9 +273,10 @@ def register_routes(app: FastAPI, templates: Jinja2Templates):
                         UPDATE alert_settings SET
                             slack_webhook=%s, webhook_url=%s, email_to=%s,
                             smtp_host=%s, smtp_port=%s, smtp_user=%s,
-                            smtp_pass=%s, alert_trigger=%s
+                            smtp_pass=COALESCE(%s, smtp_pass), alert_trigger=%s
                         WHERE id=%s
                     """, (slack_webhook, webhook_url, email_to, smtp_host,
+                          # Şifre alanı boş gönderilirse mevcut SMTP şifresi korunur (COALESCE); yeni değer yazılırsa güncellenir.
                           smtp_port, smtp_user, smtp_pass or None,
                           alert_trigger, existing["id"]))
                 else:
@@ -309,6 +319,7 @@ def register_routes(app: FastAPI, templates: Jinja2Templates):
 
     # ── Migration ─────────────────────────────────────────────────────────────
 
+    # DİKKAT: Bu uç noktada rol kontrolü (require_role) görünmüyor. Yetkisiz kullanıcının tetiklememesi için koruma (kod ya da ağ katmanında) doğrulanmalı.
     @app.post("/admin/migrate")
     def admin_migrate():
         """test_flag ve non_active_description kolonlarını ekle."""

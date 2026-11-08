@@ -6,6 +6,10 @@ Docker Swarm secrets ve Compose env_file ile uyumlu çalışır.
 import os
 
 def get_secret(key: str, default: str = "") -> str:
+    """
+    Gizli değeri okur. Önce `/run/secrets/<key>` dosyasına bakar (Docker secrets), yoksa ortam değişkenine, o da yoksa `default` değerine döner.
+    Dönen değer baştaki/sondaki boşluklardan arındırılır. Değer loglara yazılmamalıdır.
+    """
     secret_path = f"/run/secrets/{key}"
     if os.path.exists(secret_path):
         with open(secret_path) as f:

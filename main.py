@@ -14,7 +14,7 @@ import os
 from datetime import datetime
 from typing import Optional
 
-from fastapi import FastAPI, Request, Form, UploadFile, File, HTTPException
+from fastapi import Depends, FastAPI, Request, Form, UploadFile, File, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -22,7 +22,17 @@ from fastapi.templating import Jinja2Templates
 from database import get_conn, init_db
 from toml_import import parse_toml, toml_to_db
 
-app = FastAPI(title="DQ — Veri Kalitesi Platformu")
+# Tüm rotalar genel yetki kapısından geçer (auth.yetki_kapisi): giriş zorunlu, yazma işlemleri editor, /admin ve /settings admin.
+from auth import yetki_kapisi
+# FastAPI'nin /docs, /redoc ve /openapi.json rotaları yukarıdaki yetki kapısına girmez; girişsiz açık kalırdı.
+# API şemasını dışarıya sızdırmasın diye bu üç adres kapatıldı.
+app = FastAPI(
+    title="DQ — Veri Kalitesi Platformu",
+    dependencies=[Depends(yetki_kapisi)],
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
+)
 templates = Jinja2Templates(directory="templates")
 
 # ── Auth ve ek özellik route'larını kaydet ──────────────────────────────────
@@ -49,6 +59,7 @@ if os.path.exists("static"):
 
 @app.on_event("startup")
 def startup():
+    """Uygulama ilk açıldığında bir kez çalışır: veritabanı tablolarını (yoksa) oluşturur. Bu olmazsa sayfalar tablo bulamaz."""
     init_db()
 
 

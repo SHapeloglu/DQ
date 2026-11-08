@@ -144,6 +144,10 @@ class AlertManager:
         smtp_user:      str | None = None,
         smtp_pass:      str | None = None,
     ):
+        """
+        Uyarı kanallarının ayarlarını saklar. Her kanal ayrı ayrı açılır: `slack_webhook`, `webhook_url`, ya da e-posta (`email_to` ve `smtp_user` birlikte gerekir).
+        Bu sınıf ayarları veritabanına yazmaz; sadece gönderim için tutar. Parola alanları loglara yazılmaz.
+        """
         self.slack_webhook = slack_webhook
         self.webhook_url   = webhook_url
         self.email_to      = email_to
@@ -182,6 +186,10 @@ class AlertManager:
 
     def _build_summary(self, failed: list, run_id: int,
                        source_name: str) -> str:
+        """
+        Uyarı metnini (düz yazı) hazırlar: çalıştırma no, kaynak, zaman, başarısız sayısı ve her başarısız kontrolün adı/değeri.
+        Mesajında '[zscore]' ya da '[holt_winters]' geçen sonuçlar 'ANOMALİ', diğerleri 'KURAL HATASI' başlığı altında gruplanır.
+        """
         now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
         lines = [
             f"DQ Uyarı — Run #{run_id}",
@@ -211,6 +219,7 @@ class AlertManager:
         return "\n".join(lines)
 
     def _send_slack(self, summary: str, failed: list) -> bool:
+        """Özeti Slack webhook'una (blok biçiminde) POST eder. 10 saniye içinde cevap gelmezse ya da hata olursa False döner; hata yalnız konsola yazılır."""
         try:
             blocks = [
                 {
@@ -228,6 +237,7 @@ class AlertManager:
                 self.slack_webhook, data=payload,
                 headers={"Content-Type": "application/json"}, method="POST"
             )
+            # 10 saniye: dış servis yanıt vermezse istek bu süre sonunda kesilir ve çalışma takılı kalmaz.
             with urllib.request.urlopen(req, timeout=10):
                 pass
             return True
@@ -237,6 +247,7 @@ class AlertManager:
 
     def _send_webhook(self, summary: str, all_results: list,
                       failed: list) -> bool:
+        """Olayı JSON olarak genel bir webhook adresine POST eder (özet, başarısız sayısı ve sonuçlar). Başarılıysa True, hata olursa False döner."""
         try:
             payload = json.dumps({
                 "event":   "dq_failure",
@@ -258,6 +269,10 @@ class AlertManager:
             return False
 
     def _send_email(self, summary: str, failed: list) -> bool:
+        """
+        Özeti düz metin ve HTML olarak hazırlar, SMTP sunucusuna TLS (STARTTLS) ile bağlanıp gönderir. Başarılıysa True, hata olursa False döner.
+        Gönderim hatası uygulamayı durdurmaz.
+        """
         try:
             msg = MIMEMultipart("alternative")
             msg["Subject"] = f"⚠️ DQ Uyarı — {len(failed)} check başarısız"
@@ -272,12 +287,14 @@ class AlertManager:
 <pre style="background:#f9fafb;padding:16px;border-radius:8px;font-size:13px">{summary}</pre>
 <p style="color:#6b7280;font-size:12px">DQ — Veri Kalitesi Platformu</p>
 </body></html>"""
+            # DİKKAT: Özet metni HTML'e kaçış (escape) yapılmadan eklenmiş. Kaynak veya kontrol adında HTML etiketi varsa e-postada bozuk görünebilir.
             html_part = MIMEText(html_body, "html", "utf-8")
 
             msg.attach(text_part)
             msg.attach(html_part)
 
             with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+                # Bağlantı TLS ile şifrelenir; kullanıcı adı ve parola açık metin olarak gönderilmez.
                 server.starttls()
                 server.login(self.smtp_user, self.smtp_pass)
                 server.sendmail(self.smtp_user, self.email_to, msg.as_string())

@@ -9,11 +9,13 @@ from fastapi.templating import Jinja2Templates
 from database import get_conn, release_conn
 
 router = APIRouter()
+# Şablon klasörü göreli bir yol olarak verilmiş; uygulama proje kök klasöründen başlatılmalıdır.
 templates = Jinja2Templates(directory="templates")
 
 
 @router.get("/sources", response_class=HTMLResponse)
 def sources_list(request: Request, msg: str = ""):
+    """Kaynakların listesini HTML sayfası olarak gösterir. Her kaynak için aktif kontrol sayısı da hesaplanır. `msg` varsa sayfada bilgi mesajı olarak görünür."""
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -34,6 +36,7 @@ def sources_list(request: Request, msg: str = ""):
 
 @router.get("/sources/new", response_class=HTMLResponse)
 def source_new(request: Request):
+    """Yeni kaynak ekleme formunu gösterir (boş form)."""
     return templates.TemplateResponse("source_form.html", {
         "request": request, "source": None
     })
@@ -50,10 +53,15 @@ def source_create(
     user:     str = Form(""),
     password: str = Form(""),
 ):
+    """
+    Yeni kaynağı kaydeder. Tür `csv` ise yalnız dosya yolu, değilse sunucu/veritabanı bilgileri saklanır. Bilgiler JSON metin olarak `config` alanına yazılır.
+    Başarılıysa kaynak listesine yönlendirilir.
+    """
     config = {}
     if type == "csv":
         config["path"] = path
     else:
+        # DİKKAT: Şifre dahil bağlantı bilgileri veritabanına düz metin JSON olarak yazılır.
         config = {"host": host, "port": port, "database": database,
                   "user": user, "password": password}
 
@@ -73,6 +81,7 @@ def source_create(
 
 @router.get("/sources/{source_id}/edit", response_class=HTMLResponse)
 def source_edit(request: Request, source_id: int):
+    """Kaynak düzenleme formunu gösterir. `config` JSON'dan sözlüğe çevrilip forma konur. Kaynak yoksa 404 döner."""
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -84,6 +93,7 @@ def source_edit(request: Request, source_id: int):
     if not source:
         raise HTTPException(404)
 
+    # DİKKAT: Bu sözlük şablona gönderilir; şifre de form alanında görünebilir.
     source["config"] = json.loads(source["config"])
     return templates.TemplateResponse("source_form.html", {
         "request": request, "source": source
@@ -102,10 +112,15 @@ def source_update(
     user:     str = Form(""),
     password: str = Form(""),
 ):
+    """
+    Mevcut kaynağın adını, türünü ve bağlantı bilgilerini günceller. Tüm `config` her zaman baştan yazılır.
+    İşlem sonunda kaynak listesine yönlendirilir.
+    """
     config = {}
     if type == "csv":
         config["path"] = path
     else:
+        # DİKKAT: Şifre dahil bağlantı bilgileri veritabanına düz metin JSON olarak yazılır.
         config = {"host": host, "port": port, "database": database,
                   "user": user, "password": password}
 
@@ -113,6 +128,7 @@ def source_update(
     try:
         with conn.cursor() as cur:
             cur.execute(
+                # DİKKAT: Düzenleme formunda şifre alanı boş gönderilirse, mevcut şifre korunmaz; boş değer yazılır.
                 "UPDATE sources SET name=%s, type=%s, config=%s WHERE id=%s",
                 (name, type, json.dumps(config), source_id)
             )
@@ -125,6 +141,7 @@ def source_update(
 
 @router.post("/sources/{source_id}/delete")
 def source_delete(source_id: int):
+    """Kaynağı siler ve listeye yönlendirir. Silme geri alınamaz."""
     conn = get_conn()
     try:
         with conn.cursor() as cur:
