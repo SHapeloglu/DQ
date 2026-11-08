@@ -12,6 +12,12 @@ import pytest
 # Proje kökünü path'e ekle
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Uygulamanın genel yetki kapısı testlerde kapalıdır (testler giriş yapmadan çağırır).
+# Kapıyı denemek için tests/test_yetki.py override'ı kendi içinde kaldırır.
+from main import app as _uygulama
+from auth import yetki_kapisi as _kapi
+_uygulama.dependency_overrides[_kapi] = lambda: {"sub": "test", "role": "admin"}
+
 
 # ── Mock Connector ────────────────────────────────────────────────────────────
 
@@ -33,19 +39,27 @@ class MockConnector:
         self.closed      = False
 
     def connect(self):
+        """Bağlantıyı açmış gibi işaretler (gerçek bağlantı yoktur)."""
         self.connected = True
 
     def close(self):
+        """Bağlantıyı kapatmış gibi işaretler (gerçek bağlantı yoktur)."""
         self.closed = True
 
     def __enter__(self):
+        """'with' bloğu başlarken bağlantıyı açar ve nesnenin kendisini döndürür."""
         self.connect()
         return self
 
     def __exit__(self, *_):
+        """'with' bloğu bittiğinde (hata olsa bile) bağlantıyı kapatır."""
         self.close()
 
     def execute(self, query: str) -> list[dict]:
+        """
+        Verilen SQL metnini 'çalıştırmış' gibi yapar: sorguyu call_log'a kaydeder ve query_map'te anahtar kelimeyi içeren ilk sonucu döndürür.
+        Eşleşme yoksa varsayılan olarak [{"val": 1}] döner. Gerçek veritabanı kullanılmaz.
+        """
         self.call_log.append(query)
         qu = query.upper()
         for keyword, result in self.query_map.items():
@@ -85,7 +99,12 @@ def empty_connector():
 def error_connector():
     """Hata fırlatan connector — hata yönetimini test etmek için."""
     class ErrorConnector(MockConnector):
+        """
+        Bağlantı kesildiğini taklit eden sahte connector sınıfı. Her sorgu RuntimeError fırlatır; connect/close boş (no-op) bırakılmıştır.
+        Amaç: hata yönetiminin (CheckEngine'in hatayı yakalayıp FAIL döndürmesi) test edilebilmesi.
+        """
         def execute(self, query):
+            """Her sorguda 'Bağlantı kesildi' hatası fırlatır; testlerin hata yolunu sınamak için kullanılır."""
             raise RuntimeError("Bağlantı kesildi")
         def connect(self): pass
         def close(self): pass

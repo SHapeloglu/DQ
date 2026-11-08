@@ -1,4 +1,7 @@
 {% extends "base.html" %}
+{# Kural (check) listesi sayfası. routers/checks.py içindeki '/checks' route'u açar. #}
+{# Değişkenler: checks (kural listesi), sources (kaynak filtresi için liste), selected_source (seçili kaynak id'si, 0 ise hepsi), msg (üstte gösterilen bilgi mesajı). #}
+{# Sil işlemi POST /checks/{id}/delete adresine gider. #}
 {% block title %}DQ — Kurallar{% endblock %}
 
 {% block content %}
@@ -11,6 +14,7 @@
         <a href="/import" class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
             TOML Import
         </a>
+        {# Yeni kural formuna gider. Bir kaynak filtresi seçiliyse kaynak id'si adrese eklenir. #}
         <a href="/checks/new{% if selected_source %}?source_id={{ selected_source }}{% endif %}"
            class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
             + Yeni Kural
@@ -37,6 +41,7 @@
 </div>
 
 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+    {# Kural yoksa tablo yerine 'Henüz kural yok' mesajı çıkar. #}
     {% if checks %}
     <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
@@ -62,6 +67,7 @@
                 </td>
                 <td class="px-6 py-4">
                     {% if c.tags %}
+                    {# Etiketler veritabanında virgülle ayrılmış tek bir metin olarak tutulur (örn. 'critical,finance'). Burada virgülden bölünüp her biri ayrı rozet olarak gösterilir. #}
                     {% for tag in c.tags.split(',') %}
                     <span class="inline-block px-2 py-0.5 text-xs rounded-full mr-1
                         {% if tag.strip() == 'critical' %}bg-red-50 text-red-600
@@ -80,6 +86,8 @@
                 </td>
                 <td class="px-6 py-4 text-right flex justify-end gap-2">
                     <a href="/checks/{{ c.id }}/edit" class="text-xs text-gray-600 hover:underline">Düzenle</a>
+                    {# Sil formu POST ile çalışır. Onay penceresi (confirm) yalnız tarayıcıda çıkar. #}
+                    {# DİKKAT: Form içinde CSRF belirteci yok; silme işleminin sunucu tarafında yetki kontrolü olmalıdır. #}
                     <form method="post" action="/checks/{{ c.id }}/delete" class="inline"
                           onsubmit="return confirm('Silmek istediğinden emin misin?')">
                         <button class="text-xs text-red-500 hover:underline">Sil</button>

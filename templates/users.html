@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{# KULLANICI YÖNETİMİ (auth.py → GET /admin/users, yalnız admin). Liste + yeni kullanıcı formu + silme. #}
+{# Bağlam: users (liste), msg (işlem sonucu mesajı), current_user (oturumdaki admin). Parola hash'i bu sayfaya hiç gelmez. #}
+{% block title %}DQ — Kullanıcılar{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto py-6 space-y-6">
+    <h1 class="text-xl font-bold text-gray-800">Kullanıcılar</h1>
+    {% if msg %}<div class="bg-blue-50 text-blue-700 text-sm rounded p-2">{{ msg }}</div>{% endif %}
+
+    <table class="w-full bg-white shadow rounded text-sm">
+        <thead class="text-left text-gray-500 border-b">
+            <tr><th class="p-2">Kullanıcı</th><th class="p-2">E-posta</th><th class="p-2">Rol</th><th class="p-2">Durum</th><th class="p-2"></th></tr>
+        </thead>
+        <tbody>
+        {% for u in users %}
+            <tr class="border-b">
+                <td class="p-2">{{ u.username }}</td>
+                <td class="p-2">{{ u.email or "" }}</td>
+                <td class="p-2">{{ u.role }}</td>
+                <td class="p-2">{{ "aktif" if u.is_active else "pasif" }}</td>
+                <td class="p-2 text-right">
+                    {# Kendi hesabını silmeye karşı düğme gösterilmez. #}
+                    {% if u.username != current_user.sub %}
+                    <form method="post" action="/admin/users/{{ u.id }}/delete" onsubmit="return confirm('Kullanıcı silinsin mi?')">
+                        <button class="text-red-600 hover:underline">Sil</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <form method="post" action="/admin/users/new" class="bg-white shadow rounded p-4 grid grid-cols-2 gap-3 text-sm">
+        <h2 class="col-span-2 font-semibold text-gray-700">Yeni kullanıcı</h2>
+        <input name="username" placeholder="Kullanıcı adı" required class="border rounded px-3 py-2">
+        <input name="email" type="email" placeholder="E-posta" class="border rounded px-3 py-2">
+        <input name="password" type="password" placeholder="Parola" required class="border rounded px-3 py-2">
+        <select name="role" class="border rounded px-3 py-2">
+            <option value="viewer">viewer (yalnız okur)</option>
+            <option value="editor">editor (kural/kaynak düzenler)</option>
+            <option value="admin">admin</option>
+        </select>
+        <button class="col-span-2 bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2">Ekle</button>
+    </form>
+</div>
+{% endblock %}

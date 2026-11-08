@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{# UYARI AYARLARI (main_extensions.py → GET/POST /settings/alerts, yalnız admin). Kontroller başarısız olunca Slack, webhook veya e-posta ile bildirim ayarları. #}
+{# Bağlam: settings (kayıtlı ayar satırı veya boş sözlük), msg (başarı mesajı), error (hata mesajı). SMTP parolası güvenlik için forma ASLA geri yazılmaz. #}
+{% block title %}DQ — Uyarı Ayarları{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto py-6 space-y-4">
+    <h1 class="text-xl font-bold text-gray-800">Uyarı ayarları</h1>
+    {% if msg %}<div class="bg-green-50 text-green-700 text-sm rounded p-2">{{ msg }}</div>{% endif %}
+    {% if error %}<div class="bg-red-50 text-red-700 text-sm rounded p-2">{{ error }}</div>{% endif %}
+
+    <form method="post" action="/settings/alerts" class="bg-white shadow rounded p-4 space-y-3 text-sm">
+        <label class="block">Slack webhook<input name="slack_webhook" value="{{ settings.slack_webhook or '' }}" class="mt-1 w-full border rounded px-3 py-2"></label>
+        <label class="block">Webhook adresi<input name="webhook_url" value="{{ settings.webhook_url or '' }}" class="mt-1 w-full border rounded px-3 py-2"></label>
+        <label class="block">Uyarı e-postası (alıcı)<input name="email_to" value="{{ settings.email_to or '' }}" class="mt-1 w-full border rounded px-3 py-2"></label>
+        <div class="grid grid-cols-2 gap-3">
+            <label class="block">SMTP sunucusu<input name="smtp_host" value="{{ settings.smtp_host or 'smtp.gmail.com' }}" class="mt-1 w-full border rounded px-3 py-2"></label>
+            <label class="block">SMTP portu<input name="smtp_port" type="number" value="{{ settings.smtp_port or 587 }}" class="mt-1 w-full border rounded px-3 py-2"></label>
+            <label class="block">SMTP kullanıcısı<input name="smtp_user" value="{{ settings.smtp_user or '' }}" class="mt-1 w-full border rounded px-3 py-2"></label>
+            {# Parola alanı boş bırakılırsa mevcut parola KORUNUR (main_extensions.alerts_save COALESCE kullanır). #}
+            <label class="block">SMTP parolası<input name="smtp_pass" type="password" autocomplete="new-password" placeholder="{% if settings.smtp_pass %}kayıtlı — değiştirmek için yazın{% endif %}" class="mt-1 w-full border rounded px-3 py-2"></label>
+        </div>
+        <label class="block">Tetikleyici
+            <select name="alert_trigger" class="mt-1 w-full border rounded px-3 py-2">
+                <option value="any_failure" selected>Herhangi bir kural başarısız olunca</option>
+            </select>
+        </label>
+        <button class="bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2">Kaydet</button>
+    </form>
+
+    <form method="post" action="/settings/alerts/test">
+        <button class="border border-gray-300 rounded px-4 py-2 text-sm hover:bg-gray-100">Test uyarısı gönder</button>
+    </form>
+</div>
+{% endblock %}

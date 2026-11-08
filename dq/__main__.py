@@ -97,6 +97,7 @@ def run_from_dict(
 # ── CLI ──────────────────────────────────────────────────────────────────────
 
 def _cli():
+    """Komut satırı girişi (`python -m dq`). Argümanları okur, TOML'u çalıştırır ve sonuç koduyla çıkar (0 = hepsi geçti, 1 = en az bir hata)."""
     import argparse
 
     parser = argparse.ArgumentParser(prog="dq", description="Veri kalitesi kontrolü")

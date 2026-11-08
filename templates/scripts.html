@@ -1,4 +1,6 @@
 {% extends "base.html" %}
+{# Özel Python doğrulama scriptlerinin listesi. routers/scripts.py içindeki '/scripts' route'u açar. Değişkenler: scripts (liste), msg (bilgi mesajı). #}
+{# DİKKAT / TODO(kontrol): Sayfa Bootstrap sınıfları (btn, table, alert) kullanıyor; ancak base.html yalnız Tailwind yüklüyor. Görünüm bozuk olabilir; kontrol edilmeli. Kod değiştirilmedi. #}
 
 {% block title %}Custom Scripts{% endblock %}
 
@@ -21,6 +23,7 @@
     </div>
     {% endif %}
 
+    {# Hiç script yoksa tablo yerine bilgi kutusu gösterilir. #}
     {% if scripts %}
     <table class="table table-hover">
         <thead class="table-light">
@@ -48,6 +51,7 @@
                         <span class="badge bg-secondary">Pasif</span>
                     {% endif %}
                 </td>
+                {# Oluşturulma tarihinin ilk 10 karakteri (YYYY-AA-GG) gösterilir; saat bilgisi gizlenir. #}
                 <td><small>{{ s.created_at[:10] }}</small></td>
                 <td>
                     <a href="/scripts/{{ s.id }}/edit" class="btn btn-sm btn-outline-primary">Düzenle</a>

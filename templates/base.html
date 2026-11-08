@@ -1,10 +1,18 @@
 <!DOCTYPE html>
+{# DQ (Data Quality) uygulamasının ANA ŞABLONU (iskelet). #}
+{# Bu dosya tek başına sayfa değildir; diğer şablonlar (index.html, checks.html vb.) bunu genişletir ve kendi içeriğini {% block content %} alanına koyar. #}
+{# FastAPI tarafında Jinja2Templates ile yüklenir (routers/*.py içindeki TemplateResponse çağrıları). #}
+{# Üst menü ve Tailwind CSS burada tanımlıdır; sayfa değişince menü otomatik güncellenir. #}
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {# Sayfa başlığı (tarayıcı sekmesi). Alt şablon kendi başlığını {% block title %} içinde verebilir; vermezse varsayılan 'DQ' kullanılır. #}
     <title>{% block title %}DQ{% endblock %}</title>
+    {# Tailwind CSS, CDN'den yüklenir. Sayfadaki 'bg-blue-50', 'px-4' gibi sınıflar bu betik sayesinde çalışır; ayrı bir CSS dosyası yoktur. #}
+    {# DİKKAT: Stil dosyası internetten geldiği için CDN erişilemezse sayfa düz görünür. #}
     <script src="https://cdn.tailwindcss.com"></script>
+    {# Tailwind'e kendi renk paletimizi ekliyoruz (primary). Bu blok yukarıdaki CDN betiği yüklendikten SONRA çalışmalıdır; sıra değişirse 'tailwind' tanımsız hatası oluşur. #}
     <script>
         tailwind.config = {
             theme: {
@@ -17,9 +25,12 @@
         }
     </script>
 </head>
+{# Gövde (body): açık gri arka plan ve en az ekran yüksekliği. Tüm sayfalar bu alanın içinde görünür. #}
 <body class="bg-gray-50 min-h-screen">
 
 <!-- Navbar -->
+{# Üst menü. Her bağlantı, o anki istek adresine (request.url.path) bakılarak aktif (mavi) veya pasif yapılır. #}
+{# DİKKAT: Ana sayfa ('/') için tam eşleşme kontrolü yapılır; diğer bağlantılar 'adres bu metni içeriyor mu' ile kontrol edilir. Yeni menü eklerken bu kuralı izle. #}
 <nav class="bg-white border-b border-gray-200 shadow-sm">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
@@ -60,13 +71,18 @@
                     </a>
                 </div>
             </div>
-            <span class="text-xs text-gray-400">v0.3.0</span>
+            <div class="flex items-center gap-4">
+                {# Çıkış: dq_token çerezini siler ve /login'e döner (auth.py → GET /logout). #}
+                <a href="/logout" class="text-sm text-gray-500 hover:text-gray-900">Çıkış</a>
+                <span class="text-xs text-gray-400">v0.3.0</span>
+            </div>
         </div>
     </div>
 </nav>
 
 <!-- İçerik -->
 <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    {# Alt sayfaların asıl içeriği buraya yerleşir. Bu satır, child şablondaki {% block content %} bölümünü çalıştırır. #}
     {% block content %}{% endblock %}
 </main>
 

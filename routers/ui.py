@@ -16,6 +16,7 @@ templates = Jinja2Templates(directory="templates")
 
 @router.get("/wizard", response_class=HTMLResponse)
 def wizard_page(request: Request, msg: str = ""):
+    """Kural sihirbazı (wizard) sayfasını gösterir. Kaynak listesi açılır menü için veritabanından okunur."""
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -34,6 +35,7 @@ def wizard_page(request: Request, msg: str = ""):
 
 @router.get("/import", response_class=HTMLResponse)
 def import_page(request: Request, msg: str = "", error: str = ""):
+    """TOML içe aktarma sayfasını gösterir. `msg` başarı, `error` hata mesajını sayfada gösterir."""
     return templates.TemplateResponse("import.html", {
         "request": request, "msg": msg, "error": error
     })
@@ -41,6 +43,10 @@ def import_page(request: Request, msg: str = "", error: str = ""):
 
 @router.post("/import")
 async def import_toml(file: UploadFile = File(...)):
+    """
+    Yüklenen TOML dosyasını okur, veritabanına kaynak ve kurallar olarak aktarır. Başarılıysa kuralların listesine yönlendirir.
+    Hata olursa hata metni URL'de `error` parametresiyle import sayfasına döner (exception dışarı çıkmaz).
+    """
     try:
         content = await file.read()
         raw     = parse_toml(content)
@@ -55,6 +61,7 @@ async def import_toml(file: UploadFile = File(...)):
             status_code=303
         )
     except Exception as e:
+        # DİKKAT: Hata metni URL'ye olduğu gibi ekleniyor (boşluk ve özel karakterler kodlanmadan). Uzun ya da özel karakterli hatalarda bağlantı bozulabilir.
         return RedirectResponse(f"/import?error={str(e)}", status_code=303)
 
 
@@ -62,6 +69,7 @@ async def import_toml(file: UploadFile = File(...)):
 
 @router.get("/runs", response_class=HTMLResponse)
 def runs_list(request: Request):
+    """Son 100 DQ çalıştırmasını (en yeniden eskiye) tablo olarak gösterir. Her satırda kaynak adı da bulunur."""
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -82,6 +90,7 @@ def runs_list(request: Request):
 
 @router.get("/runs/{run_id}", response_class=HTMLResponse)
 def run_detail(request: Request, run_id: int):
+    """Tek bir çalıştırmanın özetini ve her kontrolün sonucunu gösterir. Çalıştırma yoksa 404 döner."""
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -109,6 +118,7 @@ def run_detail(request: Request, run_id: int):
 
 @router.get("/", response_class=HTMLResponse)
 def index(request: Request):
+    """Ana sayfa: kaynak, aktif kural ve çalıştırma sayıları, son 5 çalıştırma ve kaynak sağlık skorlarını gösterir."""
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -143,6 +153,7 @@ def index(request: Request):
 
 @router.get("/health", response_class=HTMLResponse)
 def health_dashboard(request: Request):
+    """Sağlık skorlarının gösterildiği dashboard sayfasıdır. Skorlar `dq/scoring.py` içinde hesaplanır."""
     from dq.scoring import get_all_scores
     scores = get_all_scores()
     return templates.TemplateResponse("health.html", {
@@ -155,6 +166,7 @@ def health_dashboard(request: Request):
 
 @router.get("/rule-library", response_class=HTMLResponse)
 def rule_library_page(request: Request, msg: str = ""):
+    """Kural kütüphanesi sayfasını gösterir. Kurallar en çok kullanılandan başlayarak listelenir. `msg` varsa bilgi mesajı olarak görünür."""
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -176,12 +188,15 @@ def rule_library_page(request: Request, msg: str = ""):
 
 @router.get("/anomaly", response_class=HTMLResponse)
 def anomaly_page(request: Request):
+    """Anomali sonuçları sayfasını gösterir. Veriler sayfa içinde API üzerinden yüklenir."""
     return templates.TemplateResponse("anomaly.html", {"request": request})
 
 @router.get("/cross-table", response_class=HTMLResponse)
 def cross_table_page(request: Request):
+    """Tablolar arası kontrol sonuçları sayfasını gösterir. Veriler sayfa içinde API üzerinden yüklenir."""
     return templates.TemplateResponse("cross_table.html", {"request": request})
 
 @router.get("/distribution", response_class=HTMLResponse)
 def distribution_page(request: Request):
+    """Dağılım kontrolleri sonuçları sayfasını gösterir. Veriler sayfa içinde API üzerinden yüklenir."""
     return templates.TemplateResponse("distribution.html", {"request": request})

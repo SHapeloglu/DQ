@@ -16,6 +16,10 @@ router = APIRouter()
 
 @router.get("/api/columns/{source_id}")
 def api_get_columns(source_id: int):
+    """
+    Kaynağın (source_id) tablo kolonlarının listesini döndürür. Bağlantı ayarları `sources` tablosundan okunur.
+    Bağlantı ya da okuma hatası olursa 500 değil, `columns: []` ve `error` alanı içeren bir yanıt döner.
+    """
     from profiler import get_columns
     from dq.connectors import build_connector
 
@@ -30,6 +34,7 @@ def api_get_columns(source_id: int):
     if not source:
         raise HTTPException(404, "Kaynak bulunamadı")
 
+    # Bağlantı ayarları (şifre dahil olabilir) yalnız connector'a verilir; yanıta eklenmez.
     config = _json.loads(source["config"])
     config["type"] = source["type"]
     try:
@@ -42,6 +47,10 @@ def api_get_columns(source_id: int):
 
 @router.post("/api/profile/{source_id}")
 def api_run_profile(source_id: int):
+    """
+    Kaynak için profil çıkarır (kolon istatistikleri) ve buna göre öneri kurallar üretir. İşlem uzun sürebilir.
+    Kaynak yoksa 404; profil sırasında hata olursa 500 döner. Bağlantı her durumda havuza geri verilir.
+    """
     from profiler import profile_source, suggest_rules
     from dq.connectors import build_connector
 
@@ -74,6 +83,7 @@ def api_run_profile(source_id: int):
 
 @router.get("/api/profile/{source_id}")
 def api_get_profile(source_id: int):
+    """Kaynağın son kaydedilmiş kolon profilini ve öneri kurallarını döndürür. Profil yoksa boş liste döner."""
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -92,6 +102,10 @@ def api_get_profile(source_id: int):
 # ── Runs API ─────────────────────────────────────────────────────────────────
 
 class RunPayload(BaseModel):
+    """
+    Dış sistemlerin (ör. Airflow) bir DQ çalıştırma sonucunu göndermek için kullandığı veri modeli.
+    `results` her kontrolün sonucunu, `summary` ise toplam/geçen sayılarını taşır. Alanların hepsi isteğe bağlıdır.
+    """
     source_id: Optional[int] = None
     dag_id:    Optional[str] = None
     task_id:   Optional[str] = None
@@ -101,10 +115,16 @@ class RunPayload(BaseModel):
 
 @router.post("/api/runs", status_code=201)
 def api_post_run(payload: RunPayload):
+    """
+    Bir DQ çalıştırmasının sonucunu kaydeder: önce `runs` tablosuna özet, sonra her kontrol için `run_results` satırı yazılır.
+    Durum: başarısız kontrol yoksa "pass", varsa "fail". Başarısızsa ve kaynak için uyarı açıksa uyarı gönderilir.
+    Uyarı hatası çalıştırmayı durdurmaz. Yanıt: 201 ile `run_id` ve `status`.
+    """
     conn = get_conn()
     try:
         with conn.cursor() as cur:
             total  = payload.summary.get("total", len(payload.results))
+            # DİKKAT: `summary` gelmezse geçen sayısı 0 kabul edilir; bu durumda tüm kontroller başarısız sayılır.
             passed = payload.summary.get("passed", 0)
             failed = total - passed
             status = "pass" if failed == 0 else "fail"
@@ -113,6 +133,7 @@ def api_post_run(payload: RunPayload):
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
             """, (payload.source_id, payload.dag_id, payload.task_id,
                   total, passed, failed, status))
+            # Az önce eklenen `runs` satırının otomatik artan id'si. Aşağıdaki `run_results` satırları buna bağlanır.
             run_id = cur.lastrowid
             for r in payload.results:
                 cur.execute("""
@@ -140,6 +161,7 @@ def api_post_run(payload: RunPayload):
                     if payload.source_id:
                         _cur.execute("SELECT alert_enabled FROM sources WHERE id=%s", (payload.source_id,))
                         _row = _cur.fetchone()
+                        # Kaynağa özel uyarı kapalıysa (0) uyarı gönderilmez. Kayıt bulunamazsa varsayılan olarak açık kabul edilir.
                         _enabled = (_row or {}).get("alert_enabled", 1)
                     else:
                         _enabled = 1
@@ -155,6 +177,7 @@ def api_post_run(payload: RunPayload):
 
 @router.get("/api/results")
 def api_results(limit: int = 500, passed: Optional[bool] = None):
+    """Son kontrol sonuçlarını (en yeniden eskiye) döndürür. `passed` verilirse yalnız geçen (true) ya da kalan (false) sonuçlar gelir. `limit` ile kayıt sayısı sınırlanır."""
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -179,6 +202,10 @@ def api_results(limit: int = 500, passed: Optional[bool] = None):
 
 @router.get("/odata/Results")
 def odata_results(top: int = 500, skip: int = 0):
+    """
+    Sonuçları OData formatında döndürür (Power BI gibi araçlar için). `top` alınacak kayıt sayısı, `skip` atlanacak kayıt sayısıdır (sayfalama).
+    `passed` alanı 0/1 değerinden true/false'a çevrilir.
+    """
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -199,23 +226,28 @@ def odata_results(top: int = 500, skip: int = 0):
 # ── Sağlık Skoru ─────────────────────────────────────────────────────────────
 @router.get("/api/health-score")
 def api_all_scores():
+    """Tüm kaynakların sağlık skorlarını döndürür. Hesaplama `dq/scoring.py` içindedir."""
     from dq.scoring import get_all_scores
     return get_all_scores()
 
 @router.get("/api/health-score/{source_id}")
 def api_health_score(source_id: int):
+    """Tek bir kaynağın sağlık skorunu döndürür (`dq/scoring.py`)."""
     from dq.scoring import get_health_score
     return get_health_score(source_id)
 
 @router.get("/api/health-score/{source_id}/trend")
 def api_score_trend(source_id: int, days: int = 7):
+    """Kaynağın sağlık skorunun son `days` gündeki değişimini döndürür. Varsayılan 7 gündür."""
     from dq.scoring import get_score_trend
     return get_score_trend(source_id, days)
 
 # ── Business Glossary ─────────────────────────────────────────────────────────
 @router.get("/api/glossary/{source_id}")
 def api_glossary_get(source_id: int):
+    """Kaynağın kolonlarının iş sözlüğü bilgilerini (iş adı, açıklama, sahip, etiketler) döndürür. Kolon adına göre sıralanır."""
     from database import get_conn, release_conn
+    # TODO(kontrol): Diğer route'lar `release_conn` ile bağlantıyı havuza geri verirken burada `with` kullanılıyor. PyMySQL'de `with` bağlantıyı kapatabilir; tutarlılık için release_conn önerilir.
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -227,11 +259,16 @@ def api_glossary_get(source_id: int):
 
 @router.put("/api/glossary/{source_id}/{column_name}")
 def api_glossary_update(source_id: int, column_name: str, payload: dict):
+    """
+    Bir kolonun iş sözlüğü alanlarını günceller. Yalnız izinli alanlar (business_name, description, owner, tags) kabul edilir; diğerleri sessizce atılır.
+    Hiç izinli alan yoksa 400 döner.
+    """
     allowed = {"business_name", "description", "owner", "tags"}
     updates = {k: v for k, v in payload.items() if k in allowed}
     if not updates:
         from fastapi import HTTPException
         raise HTTPException(400, "Güncellenecek alan yok")
+    # Alan adları yalnız izinli listeden (allowed) geçtiği için SQL'e eklenmeleri güvenlidir. Değerler %s ile gönderilir.
     fields = ", ".join(f"{k}=%s" for k in updates)
     values = list(updates.values()) + [source_id, column_name]
     from database import get_conn, release_conn
@@ -247,19 +284,31 @@ def api_glossary_update(source_id: int, column_name: str, payload: dict):
 # ── Alert Ayarları ────────────────────────────────────────────────────────────
 @router.get("/api/alert-settings")
 def api_alert_settings_get():
+    """Uyarı ayarlarını (webhook, e-posta, SMTP) döndürür. Ayar satırı yoksa boş sözlük döner."""
     conn = get_conn()
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT * FROM alert_settings LIMIT 1")
             row = cur.fetchone()
+        # SMTP parolası asla düz metin dönmez; yalnız var olduğu belli edilir.
+        if row and row.get("smtp_pass"):
+            row["smtp_pass"] = "********"
         return row or {}
     finally:
         release_conn(conn)
 
 @router.put("/api/alert-settings")
 def api_alert_settings_put(payload: dict):
+    # DİKKAT: Webhook adresi ve SMTP şifresi veritabanına düz metin olarak yazılır. Bu bilgiler gizli tutulmalıdır.
+    """
+    Uyarı ayarlarını kaydeder. Yalnız izinli alanlar yazılır. Ayar satırı yoksa oluşturulur (id=1), varsa güncellenir.
+    Hiç izinli alan yoksa 400 döner.
+    """
     allowed = {"slack_webhook","webhook_url","email_to","smtp_host","smtp_port","smtp_user","smtp_pass"}
     data = {k: v for k, v in payload.items() if k in allowed}
+    # GET maskeli parolayı geri gönderir; bu değer kayıtlı parolanın üzerine yazılmamalı.
+    if data.get("smtp_pass") == "********":
+        del data["smtp_pass"]
     if not data:
         from fastapi import HTTPException
         raise HTTPException(400, "Güncellenecek alan yok")
@@ -270,6 +319,7 @@ def api_alert_settings_put(payload: dict):
             exists = cur.fetchone()
             if exists:
                 fields = ", ".join(f"{k}=%s" for k in data)
+                # Alan adları yalnız izinli listeden geldiği için SQL'e güvenle eklenir; değerler %s ile ayrıca gönderilir.
                 cur.execute(f"UPDATE alert_settings SET {fields} WHERE id=1", list(data.values()))
             else:
                 fields = ", ".join(data.keys())
@@ -282,6 +332,7 @@ def api_alert_settings_put(payload: dict):
 
 @router.put("/api/sources/{source_id}/alert-enabled")
 def api_source_alert_toggle(source_id: int, payload: dict):
+    """Bir kaynak için uyarıyı açar ya da kapatır (`alert_enabled`). Kapalıysa bu kaynağın başarısız sonuçları için uyarı gönderilmez."""
     enabled = int(bool(payload.get("alert_enabled", 1)))
     conn = get_conn()
     try:
@@ -295,6 +346,10 @@ def api_source_alert_toggle(source_id: int, payload: dict):
 # ── PII / KVKK Raporu ─────────────────────────────────────────────────────────
 @router.get("/api/pii-report")
 def api_pii_report():
+    """
+    Bu rapor `column_profiles` tablosunda `is_pii = 1` olan (kişisel veri olarak işaretlenmiş) kolonları listeler. KVKK denetimi için kullanılır.
+    Tüm kaynakların toplu raporunu döndürür: kaynak adına göre gruplanmış PII kolon listesi ve toplam sayılar.
+    """
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -328,6 +383,7 @@ def api_pii_report():
 
 @router.get("/api/pii-report/{source_id}")
 def api_pii_report_source(source_id: int):
+    """Tek bir kaynağın PII kolonlarını (tip, etiket, boş oranı, benzersiz değer sayısı) döndürür."""
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -345,6 +401,10 @@ def api_pii_report_source(source_id: int):
 # ── PII / KVKK Raporu ─────────────────────────────────────────────────────────
 @router.get("/api/pii-report")
 def api_pii_report():
+    """
+    Bu rapor `column_profiles` tablosunda `is_pii = 1` olan (kişisel veri olarak işaretlenmiş) kolonları listeler. KVKK denetimi için kullanılır.
+    Bu, yukarıdaki aynı yollu tanımın birebir kopyasıdır. FastAPI ilk tanımı kullandığı için bu ikinci kopya işlevsizdir (DİKKAT: silinebilir; kod davranışı değişmez).
+    """
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -378,6 +438,7 @@ def api_pii_report():
 
 @router.get("/api/pii-report/{source_id}")
 def api_pii_report_source(source_id: int):
+    """Yukarıdaki aynı yollu tanımın birebir kopyasıdır. FastAPI ilk tanımı kullandığı için bu ikinci kopya işlevsizdir (DİKKAT: silinebilir; kod davranışı değişmez)."""
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -397,6 +458,7 @@ def api_pii_report_source(source_id: int):
 
 @router.get("/api/rule-library")
 def api_rule_library_list():
+    """Kural kütüphanesindeki (sık kullanılan kolon desen ve kuralları) tüm kayıtları, en çok kullanılandan başlayarak döndürür."""
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -409,6 +471,10 @@ def api_rule_library_list():
 
 @router.post("/api/rule-library")
 async def api_rule_library_create(request: Request):
+    """
+    Kural kütüphanesine yeni bir desen ekler (form verisi ile). Pattern ve kural tipi zorunludur; eksikse listeye hata mesajıyla yönlendirir.
+    `INSERT IGNORE` nedeniyle aynı kayıt zaten varsa hata vermeden atlanır.
+    """
     from fastapi.responses import RedirectResponse
     form = await request.form()
     pattern   = form.get("column_name_pattern", "").strip()
@@ -431,6 +497,7 @@ async def api_rule_library_create(request: Request):
 
 @router.post("/api/rule-library/{rule_id}/delete")
 def api_rule_library_delete(rule_id: int):
+    """Kural kütüphanesinden verilen id'li kaydı siler ve listeye yönlendirir."""
     from fastapi.responses import RedirectResponse
     conn = get_conn()
     try:
@@ -443,6 +510,10 @@ def api_rule_library_delete(rule_id: int):
 
 @router.get("/api/anomaly-results")
 def api_anomaly_results(source_id=None, limit: int = 200):
+    """
+    Anomali kontrollerinin (anomal, zscore, volume, trend, distribution) sonuçlarını döndürür. `source_id` verilirse yalnız o kaynağın sonuçları gelir.
+    Adı bu kelimelerden birini içeren kontroller seçilir (REGEXP).
+    """
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -470,6 +541,7 @@ def api_anomaly_results(source_id=None, limit: int = 200):
 
 @router.get("/api/cross-table-results")
 def api_cross_table_results(source_id=None, limit: int = 200):
+    """Tablolar arası (cross-table) ve referans bütünlüğü kontrollerinin sonuçlarını döndürür. `source_id` ile filtrelenebilir."""
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -497,6 +569,9 @@ def api_cross_table_results(source_id=None, limit: int = 200):
 
 @router.get("/api/distribution-results")
 def api_distribution_results(source_id=None, limit: int = 200):
+    """
+    Dağılım (distribution) kontrollerinin sonuçlarını döndürür. `source_id` ile filtrelenebilir.
+    """
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -520,7 +595,7 @@ def api_distribution_results(source_id=None, limit: int = 200):
             rows = cur.fetchall()
     finally:
         release_conn(conn)
-    return {"results": rows, "count": len(rows)}@router.get("/api/profile-export/{source_id}")
+    return {"results": rows, "count": len(rows)}
 
 
 @router.get("/api/profile-export/{source_id}")
@@ -545,6 +620,7 @@ async def profile_export(source_id: int, format: str = "csv"):
         
         rows = cursor.fetchall()
         if not rows:
+            # DİKKAT: Bu HTTPException, aşağıdaki `except Exception` bloğu tarafından yakalanır ve 500 olarak döner. Yani 404 yerine 500 gider.
             raise HTTPException(status_code=404, detail="Profil verisi bulunamadı")
         
         cursor.close()
@@ -605,6 +681,7 @@ async def profile_export(source_id: int, format: str = "csv"):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# DİKKAT: Bu ikinci `profile_export` üstünde route dekoratörü (@router) yok; FastAPI bunu kaydetmez, ölü koddur. Ayrıca bu gövde `io`, `csv`, `json` ve `FileResponse` adlarını kullanır ama bunları içe aktarmaz.
 async def profile_export(source_id: int, format: str = "csv"):
     """Profil istatistiklerini CSV/JSON olarak indir."""
     try:

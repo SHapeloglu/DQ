@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{# DQ ANA İSTATİSTİK PANOSU (main_extensions.py → GET /dashboard). Grafik kütüphanesi kullanmaz; çubuklar Tailwind genişlik sınıflarıyla çizilir. #}
+{# Bağlam: stats (toplam çalıştırma, başarı %, bugünkü kontrol, bugünkü hata), trend_data (son 14 gün: date/passed/failed), source_data (kaynak başına başarı %), top_failures (en çok başarısız kurallar). #}
+{% block title %}DQ — Pano{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto py-6 space-y-6">
+    <h1 class="text-xl font-bold text-gray-800">Pano</h1>
+
+    {# Özet kartları #}
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-white shadow rounded p-4"><div class="text-xs text-gray-500">Toplam çalıştırma</div><div class="text-2xl font-bold">{{ stats.total_runs }}</div></div>
+        <div class="bg-white shadow rounded p-4"><div class="text-xs text-gray-500">Başarı oranı</div><div class="text-2xl font-bold">%{{ stats.success_rate }}</div></div>
+        <div class="bg-white shadow rounded p-4"><div class="text-xs text-gray-500">Bugünkü kontrol</div><div class="text-2xl font-bold">{{ stats.today_checks }}</div></div>
+        <div class="bg-white shadow rounded p-4"><div class="text-xs text-gray-500">Bugünkü hata</div><div class="text-2xl font-bold {% if stats.failed_checks %}text-red-600{% endif %}">{{ stats.failed_checks }}</div></div>
+    </div>
+
+    {# Son 14 gün: her gün için geçen (yeşil) ve kalan (kırmızı) kontrol sayısı. #}
+    <div class="bg-white shadow rounded p-4">
+        <h2 class="font-semibold text-gray-700 mb-3">Son 14 gün</h2>
+        {% if trend_data %}
+        <table class="w-full text-sm">
+            <thead class="text-left text-gray-500 border-b"><tr><th class="p-1">Gün</th><th class="p-1">Geçen</th><th class="p-1">Kalan</th></tr></thead>
+            <tbody>
+            {% for t in trend_data %}
+                <tr class="border-b"><td class="p-1">{{ t.date }}</td><td class="p-1 text-green-700">{{ t.passed }}</td><td class="p-1 {% if t.failed %}text-red-600{% endif %}">{{ t.failed }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}<p class="text-sm text-gray-500">Son 14 günde çalıştırma yok.</p>{% endif %}
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-6">
+        {# Kaynak başına başarı oranı: en düşük başarıdan başlar. Çubuk genişliği yüzdeyle aynıdır (inline style, 0-100). #}
+        <div class="bg-white shadow rounded p-4">
+            <h2 class="font-semibold text-gray-700 mb-3">Kaynaklara göre başarı</h2>
+            {% for s in source_data %}
+            <div class="mb-2 text-sm">
+                <div class="flex justify-between"><span>{{ s.source_name }}</span><span>%{{ s.success_rate }}</span></div>
+                <div class="h-2 bg-gray-100 rounded"><div class="h-2 rounded {% if s.success_rate >= 90 %}bg-green-500{% elif s.success_rate >= 70 %}bg-yellow-500{% else %}bg-red-500{% endif %}" style="width: {{ s.success_rate }}%"></div></div>
+            </div>
+            {% else %}<p class="text-sm text-gray-500">Henüz veri yok.</p>{% endfor %}
+        </div>
+
+        {# En çok başarısız olan 10 kural. #}
+        <div class="bg-white shadow rounded p-4">
+            <h2 class="font-semibold text-gray-700 mb-3">En çok başarısız kurallar</h2>
+            <table class="w-full text-sm">
+                <tbody>
+                {% for f in top_failures %}
+                    <tr class="border-b"><td class="p-1">{{ f.check_name }}</td><td class="p-1 text-right text-red-600">{{ f.fail_count }}/{{ f.total_count }} (%{{ f.fail_pct }})</td></tr>
+                {% else %}<tr><td class="p-1 text-gray-500">Başarısız kural yok.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

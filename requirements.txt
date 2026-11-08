@@ -12,3 +12,6 @@ ibm-db>=2.3.0
 ibm-db-sa>=0.4.0
 statsmodels==0.14.2
 numpy==1.26.4
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1

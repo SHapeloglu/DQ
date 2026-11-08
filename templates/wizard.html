@@ -1,4 +1,8 @@
 {% extends "base.html" %}
+{# Kural sihirbazı (/wizard). Kullanıcı SQL veya TOML bilmeden formdan kural üretir; sayfa aynı anda SQL ve TOML önizlemesini gösterir. #}
+{# routers/ui.py içindeki 'wizard' route'u açar. Değişkenler: sources (kaynak listesi), msg (bilgi mesajı). #}
+{# Sol taraf: kaynak seçimi, kontrol tipi düğmeleri ve parametre panelleri. Sağ taraf: üretilen SQL / TOML. #}
+{# Sayfanın mantığı en alttaki script bloğunda; oradaki açıklamayı oku. #}
 {% block title %}DQ — Kural Oluştur{% endblock %}
 
 {% block content %}
@@ -40,6 +44,7 @@
                 <label class="block text-xs text-gray-500 mb-1">Kolonlar — seçmek için tıkla</label>
                 <div id="columns-list" class="flex flex-wrap gap-2"></div>
             </div>
+            {# Detaylı profil: seçili kaynağın istatistiklerini ve kural önerilerini çeker. Sonuçlar aşağıdaki kutularda görünür. KVKK (kişisel veri) kolonu bulunursa sarı uyarı kutusu çıkar. #}
             <button id="profile-btn" onclick="runProfile()"
                     class="mt-3 w-full py-2 border border-gray-200 rounded-lg text-xs text-gray-500 hover:bg-gray-50 hover:border-blue-300 hover:text-blue-600 transition">
                 Detaylı Profil çalıştır — istatistik + kural önerisi
@@ -60,6 +65,7 @@
 
             <!-- Temel kontroller -->
             <p class="text-xs text-gray-400 font-medium mb-2 mt-1">TEMEL</p>
+            {# Kontrol tipi düğmeleri (20 adet, kategorili). Tıklanan düğme selectChip() ile seçilir ve mavi görünür. data-label, üstteki arama kutusunun (filterChips) bakacağı anahtar kelimelerdir. #}
             <div class="flex flex-wrap gap-2 mb-3" id="chips">
                 <button onclick="selectChip(this,'null')" class="chip active px-3 py-1.5 rounded-full text-sm border border-blue-200 bg-blue-50 text-blue-700" data-label="Boş değer NULL kontrol">Boş değer</button>
                 <button onclick="selectChip(this,'rowcount')" class="chip px-3 py-1.5 rounded-full text-sm border border-gray-200 text-gray-600 hover:bg-gray-50" data-label="Satır sayısı row count">Satır sayısı</button>
@@ -117,9 +123,11 @@
             <p class="text-sm font-medium text-gray-900 mb-3">3. Parametreler</p>
 
             <!-- Boş değer -->
+            {# Parametre panelleri: her kontrol tipinin kendi paneli vardır ve id'si 'p-<kontrol_tipi>' biçimindedir (örn. p-range). Yalnız seçili tipin paneli açılır; diğerleri 'hidden' ile gizlenir. #}
             <div id="p-null" class="space-y-3">
                 <div>
                     <label class="block text-xs text-gray-500 mb-1">Kolon</label>
+                    {# Kolon açılır listesindeki sabit seçenekler (customer_id, amount, created_at) yalnız örnektir. Kaynak seçilince loadColumns() gerçek kolon adlarını doldurur. #}
                     <select id="col-null" onchange="update()" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option>customer_id</option><option>amount</option><option>created_at</option>
                     </select>
@@ -486,6 +494,7 @@
     <div class="space-y-4">
 
         <!-- SQL önizleme -->
+        {# Wizard'ın ürettiği SQL. Kaydedilince kuralın 'query' alanına bu SQL yazılır. Kopyala düğmesi kutunun metnini panoya kopyalar. #}
         <div class="bg-white rounded-xl border border-gray-200 p-5">
             <div class="flex items-center justify-between mb-3">
                 <p class="text-sm font-medium text-gray-900">Çalışacak SQL</p>
@@ -510,6 +519,7 @@
                     kopyala
                 </button>
             </div>
+            {# Üretilen TOML satırları. Kullanıcı bunu checks.toml dosyasına ekleyebilir. Metin her değişiklikte update() ile yeniden yazılır. #}
             <pre id="toml-preview"
                  class="bg-gray-50 text-gray-700 rounded-lg p-4 text-xs font-mono overflow-x-auto leading-relaxed border border-gray-100"></pre>
             <p class="text-xs text-gray-400 mt-2">
@@ -528,6 +538,17 @@
     </div>
 </div>
 
+{# Sayfa JavaScript'i (sihirbazın mantığı): #}
+{# - getVal(id): bir kutudaki değeri okur (yoksa boş metin). #}
+{# - buildSQL() / buildTOML(): seçili kontrole göre SQL ve TOML metni üretir; update() ikisini de sağ paneli yeniden yazarak günceller. #}
+{# - selectChip(): kontrol tipi düğmesini seçer ve ilgili parametre panelini açar. #}
+{# - loadColumns(): kaynak değişince /api/columns/{id} ile kolonları çeker. #}
+{# - runProfile(): /api/profile, /api/glossary, /api/pii-report istekleriyle profil ve KVKK uyarısı üretir. #}
+{# - applySuggestion() / rejectSuggestion(): profil önerisini forma uygular ya da reddeder (/api/suggestions/reject). #}
+{# - saveRule(): formu /checks/new adresine POST eder, başarılıysa /checks sayfasına yönlendirir. #}
+{# DİKKAT / TODO(kontrol): saveRule() içindeki 'params' sözlüğünde yalnız 6 kontrol tipi var (null, rowcount, range, duplicate, freshness, ratio). Diğer tipler kaydedilirken 'params[...] is not a function' hatası oluşur. Kod değiştirilmedi. #}
+{# DİKKAT: showPiiBanner() dosyada iki kez tanımlı; ikincisi birincisinin yerine geçer. #}
+{# DİKKAT: Önizleme ve öneri metinleri innerHTML ile yazılıyor; kolon adı gibi veriler kaçışsız basılabilir (XSS riski). #}
 <script>
 let currentType = 'null';
 

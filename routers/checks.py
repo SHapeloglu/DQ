@@ -13,9 +13,11 @@ templates = Jinja2Templates(directory="templates")
 
 @router.get("/checks", response_class=HTMLResponse)
 def checks_list(request: Request, source_id: int = 0, msg: str = ""):
+    """Kuralları (check) listeler. `source_id` verilirse yalnız o kaynağın kuralları gösterilir; 0 ise hepsi. Kaynak adları açılır menü için de okunur."""
     conn = get_conn()
     try:
         with conn.cursor() as cur:
+            # Kaynak adlarını açılır menü için alırız; alan adı ve sıralama formdakiyle uyumlu olmalı.
             cur.execute("SELECT id, name FROM sources ORDER BY name")
             sources = cur.fetchall()
 
@@ -46,6 +48,7 @@ def checks_list(request: Request, source_id: int = 0, msg: str = ""):
 
 @router.get("/checks/new", response_class=HTMLResponse)
 def check_new(request: Request, source_id: int = 0):
+    """Yeni kural ekleme formunu gösterir. `source_id` verilirse form o kaynağa göre açılır."""
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -72,6 +75,10 @@ def check_create(
     column_type:         str = Form(""),
     library_pattern_id:  str = Form(""),
 ):
+    """
+    Formdan yeni bir kural kaydeder. `query` alanındaki SQL olduğu gibi saklanır ve daha sonra kaynağa karşı çalıştırılır.
+    Kolon adı verilmişse kural kullanım kaydı tutulur; kütüphane önerisinden gelmişse öneri 'kabul edildi' olarak işaretlenir.
+    """
     from profiler import fingerprint_query, record_rule_usage, record_suggestion_feedback
 
     conn = get_conn()
@@ -90,6 +97,7 @@ def check_create(
             record_rule_usage(
                 conn, column_name, column_type, rule_type,
                 {"assert_type": assert_type, "assert_value": assert_value},
+                # Kural kütüphanesi kaynağı: sihirbazdan elle eklendiyse `wizard_manual`, kütüphane önerisinden geldiyse `sql` olarak kaydedilir.
                 source_format="wizard_manual" if not pid else "sql",
             )
             if pid:
@@ -105,6 +113,10 @@ def reject_suggestion(
     suggestion_type:    str = Form(...),
     library_pattern_id: str = Form(""),
 ):
+    """
+    Kullanıcı bir kural önerisini reddettiğinde çağrılır. Geri bildirim `profiler` içine kaydedilir ve `{"ok": True}` döner.
+    `library_pattern_id` boşsa kütüphane kaydı olmadan işlenir.
+    """
     from profiler import record_suggestion_feedback, SUGGESTION_TYPE_TO_RULE_TYPE
 
     rule_type = SUGGESTION_TYPE_TO_RULE_TYPE.get(suggestion_type, suggestion_type)
@@ -119,6 +131,7 @@ def reject_suggestion(
 
 @router.get("/checks/{check_id}/edit", response_class=HTMLResponse)
 def check_edit(request: Request, check_id: int):
+    """Mevcut kuralı düzenleme formunda açar. Kural yoksa 404 döner. Form için kaynak listesi de yüklenir."""
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -149,6 +162,7 @@ def check_update(
     tags:         str = Form(""),
     is_active:    int = Form(1),
 ):
+    """Mevcut kuralın tüm alanlarını günceller. `is_active=0` gönderilirse kural pasif olur ve çalıştırılmaz. İşlem sonunda listeye yönlendirilir."""
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -167,6 +181,7 @@ def check_update(
 
 @router.post("/checks/{check_id}/delete")
 def check_delete(check_id: int):
+    """Kuralı kalıcı olarak siler ve listeye yönlendirir. Geri alınamaz."""
     conn = get_conn()
     try:
         with conn.cursor() as cur:

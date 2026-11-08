@@ -1,4 +1,6 @@
 {% extends "base.html" %}
+{# Tek bir run'ın ayrıntı sayfası (/runs/{id}). routers/ui.py içindeki 'runs/{run_id}' route'u açar. #}
+{# Değişkenler: run (kaynak, DAG/task, geçen/kalan sayısı, durum, zaman) ve results (her kontrolün sonucu). #}
 {% block title %}DQ — Run #{{ run.id }}{% endblock %}
 
 {% block content %}
@@ -43,6 +45,7 @@
     <div class="px-6 py-4 border-b border-gray-100">
         <h2 class="font-semibold text-gray-900">Check Sonuçları</h2>
     </div>
+    {# Bu run için kontrol sonucu kaydı yoksa 'Sonuç bulunamadı' yazısı gösterilir. #}
     {% if results %}
     <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
@@ -60,6 +63,8 @@
                 <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ r.check_name }}</td>
                 <td class="px-6 py-4">
                     <span class="flex items-center gap-1.5">
+                        {# Anomali kontrolü mü? Mesaj metninde [zscore], [holt_winters] veya [ewma] etiketi varsa anomali kontrolüdür. #}
+                        {# Anomali sonucu geçmiş olsa bile uyarı (sarı 'ANOMALİ' / 'PASS (anomali)') olarak gösterilir; normal FAIL'den farklıdır. #}
                         {% set is_anomaly = r.message and ('[zscore]' in r.message or '[holt_winters]' in r.message or '[ewma]' in r.message) %}
                         {% if r.passed and not is_anomaly %}
                         <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">

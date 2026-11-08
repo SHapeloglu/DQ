@@ -46,6 +46,10 @@ from dq.metrics import MetricStore
 from secrets_loader import get_secret
 
 def _get_metric_store() -> MetricStore:
+    """
+    Trend/anomali kontrolleri için metrik deposunu döndürür. `METRICS_PG_DSN` gizli değeri varsa PostgreSQL, yoksa yerel (varsayılan) depo kullanılır.
+    DSN değeri (bağlantı adresi) loglara yazılmamalıdır.
+    """
     dsn = get_secret("METRICS_PG_DSN")
     if dsn:
         return MetricStore(backend="postgres", dsn=dsn)
@@ -61,9 +65,11 @@ def _get_custom_script_fn(script_id: int):
     
     try:
         conn = get_conn()
+        # TODO(kontrol): `mysql.connector` ve `dictionary=True` yalnız mysql-connector-python ile çalışır. Proje genelinde pymysql kullanılıyor; bu yol kurulu değilse hata verebilir.
         with conn.cursor(dictionary=True) as cur:
             cur.execute("SELECT code, function_name FROM custom_scripts WHERE id = %s AND is_active = 1", (script_id,))
             row = cur.fetchone()
+        # DİKKAT: Sorgu hata verirse bu satıra gelinmez ve bağlantı havuza geri verilmez (finally bloğu yok).
         release_conn(conn)
         
         if not row:
@@ -80,6 +86,7 @@ _ASSERTION_MAP = {
     "between":             lambda v: between(v[0], v[1]),
     "equals":              lambda v: equals(v),
     "row_count_at_least":  lambda v: row_count_at_least(v),
+    # DİKKAT: Bu assertion değer almaz; `value` alanı yok sayılır. Fabrika, `is_not_null` fonksiyonunun kendisini döndürür.
     "is_not_null":         lambda _: is_not_null,
     "row_count_between":   lambda v: row_count_between(v[0], v[1]),
     "referential_integrity": lambda v: referential_integrity(v[0], v[1]),
@@ -91,11 +98,17 @@ _ASSERTION_MAP = {
     "custom_sql":             lambda v: custom_sql(v),
     "row_condition":          lambda v: row_condition(str(v)),
     "volume_anomaly":         lambda v: volume_anomaly(float(v) if v is not None else 50.0),
+    # DİKKAT: Her check ayrıştırılırken yeni bir metrik deposu açılır. Eşik 3.0 sabit yazılmış; TOML'dan değiştirilemez.
     "zscore_anomaly":         lambda v: zscore_anomaly(str(v) if not isinstance(v, str) else v, store=_get_metric_store(), max_zscore=3.0),
 }
 
 
 def _parse_check(raw: dict[str, Any]) -> Check:
+    """
+    TOML/dict'teki tek bir check tanımını `Check` nesnesine çevirir.
+    Alanlar: `name`, `query`, `assert` (assertion adı), `value` (isteğe bağlı eşik) ve `tags`.
+    Bilinmeyen bir assertion adı verilirse ValueError fırlatılır; eksik zorunlu alanda KeyError oluşur.
+    """
     assertion_name = raw["assert"]
     assertion_val  = raw.get("value")
 
@@ -124,6 +137,7 @@ class SodaConfig:
     """
 
     def __init__(self, raw: dict[str, Any]):
+        """Ham konfigürasyon sözlüğünü (TOML'dan ya da dict'ten gelen) saklar. Bağlantı ve check'ler bu sözlükten sonradan üretilir."""
         self._raw = raw
 
     # ── Yükleyiciler ──────────────────────────────────────────────────────
@@ -154,25 +168,33 @@ class SodaConfig:
             env_key = f"DQ_{db_type}_{field.upper()}"
             val = os.getenv(env_key)
             if val is not None:
+                # Ortam değişkeni TOML değerinin üstüne yazar. Port sayı olmalıdır; ortam değişkenleri metin olduğu için int'e çevrilir.
                 src[field] = int(val) if field == "port" else val
         raw["source"] = src
         return raw
 
     @classmethod
     def from_toml(cls, path: str | Path) -> "SodaConfig":
+        """
+        TOML dosyasını okur, `[source]` bölümündeki gizli değerleri çözer ve bir SodaConfig döndürür.
+        Dosya bulunamazsa FileNotFoundError, TOML bozuksa tomllib hatası fırlatılır.
+        """
         with open(path, "rb") as f:
             raw = tomllib.load(f)
         return cls(cls._resolve_env_vars(raw))
 
     @classmethod
     def from_dict(cls, data: dict) -> "SodaConfig":
+        """Python sözlüğünden SodaConfig üretir. Gizli değer çözümü yapılmaz; sözlük olduğu gibi kullanılır."""
         return cls(data)
 
     # ── Üreticiler ────────────────────────────────────────────────────────
 
     def build_connector(self):
+        """`[source]` bölümünden bir connector nesnesi üretir. Sözlüğün kopyası kullanılır; böylece `type` alanı orijinal veriden silinmez."""
         source_cfg = dict(self._raw["source"])   # kopyala, pop'dan etkilenmesin
         return build_connector(source_cfg)
 
     def build_checks(self) -> list[Check]:
+        """`[[checks]]` listesindeki her tanımı `_parse_check` ile Check nesnesine çevirip liste olarak döndürür. Check yoksa boş liste."""
         return [_parse_check(c) for c in self._raw.get("checks", [])]

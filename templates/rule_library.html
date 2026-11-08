@@ -1,4 +1,7 @@
 {% extends "base.html" %}
+{# Kural kütüphanesi (/rule-library). routers/ui.py içindeki 'rule-library' route'u açar; değişkenler: rules (kalıp listesi), msg (bilgi mesajı). #}
+{# Kalıp (pattern), bir kolon adına uygulanacak hazır kuraldır. Wizard kullanıldıkça otomatik birikir; buradan elle de eklenebilir. #}
+{# DİKKAT / TODO(kontrol): Sayfa Bootstrap sınıfları ve modal (data-bs-*) kullanıyor; ancak base.html yalnız Tailwind yüklüyor. Görünüm ve açılır pencere çalışmayabilir; kontrol edilmeli. #}
 {% block title %}Kural Kütüphanesi{% endblock %}
 {% block content %}
 <div class="container py-4">
@@ -33,6 +36,7 @@
       </thead>
       <tbody>
         {% for r in rules %}
+        {# Kabul yüzdesi = kabul sayısı / (kabul + red) * 100. Hiç karar verilmemişse 0 gösterilir. #}
         {% set total = r.times_accepted + r.times_rejected %}
         {% set pct = ((r.times_accepted / total * 100) | round(1)) if total > 0 else 0 %}
         <tr>
@@ -44,12 +48,14 @@
           <td class="text-center text-danger">{{ r.times_rejected }}</td>
           <td class="text-center">
             <div class="progress" style="height:18px;min-width:60px">
+              {# Kabul yüzdesine göre renk: 70 ve üzeri yeşil, 40-69 sarı, altı kırmızı. #}
               <div class="progress-bar {% if pct >= 70 %}bg-success{% elif pct >= 40 %}bg-warning{% else %}bg-danger{% endif %}"
                    style="width:{{ pct }}%">{{ pct }}%</div>
             </div>
           </td>
           <td class="text-muted small">{{ r.last_used_at or "—" }}</td>
           <td>
+            {# Kalıbı silen form (POST /api/rule-library/{id}/delete). Onay penceresi yalnız tarayıcıda çıkar. #}
             <form method="post" action="/api/rule-library/{{ r.id }}/delete"
                   onsubmit="return confirm('Silinsin mi?')">
               <button class="btn btn-sm btn-outline-danger">Sil</button>
@@ -69,6 +75,7 @@
 </div>
 
 <!-- Yeni Pattern Modal -->
+{# Elle yeni kalıp eklemek için açılır pencere (modal). Form POST /api/rule-library adresine gider. Açılması için Bootstrap JavaScript gerekir. #}
 <div class="modal fade" id="addModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">

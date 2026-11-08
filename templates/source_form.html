@@ -1,4 +1,7 @@
 {% extends "base.html" %}
+{# Kaynak ekleme / düzenleme formu. routers/sources.py'daki /sources/new (yeni) ve /sources/{id}/edit (düzenleme) route'ları kullanır. #}
+{# 'source' değişkeni yalnız düzenlemede dolu gelir; yeni kayıtta yoktur. Alanlar 'source.config' içinden ön doldurulur. #}
+{# DİKKAT / TODO(kontrol): Route'lar yalnız host, port, database, user, password, path alanlarını kaydeder. Form'daki SqlAlchemy 'url', 'tablo', Oracle 'service' ve 'tablo' alanları veritabanına yazılmaz; düzenlemede kaybolabilir. Kod değiştirilmedi. #}
 {% block title %}DQ — {{ 'Kaynağı Düzenle' if source else 'Yeni Kaynak' }}{% endblock %}
 
 {% block content %}
@@ -10,6 +13,7 @@
 </div>
 
 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 max-w-2xl">
+    {# Form nereye gönderileceğini burada belirler: düzenlemede ilgili kaynağın /edit adresine, yeni kayıtta /sources/new adresine POST yapılır. #}
     <form method="post" action="{{ '/sources/' + source.id|string + '/edit' if source else '/sources/new' }}">
 
         <div class="mb-4">
@@ -21,6 +25,7 @@
 
         <div class="mb-4">
             <label class="block text-sm font-medium text-gray-700 mb-1">Tip</label>
+            {# Kaynak tipi değişince aşağıdaki alan grupları (CSV, Oracle, SqlAlchemy, DB) toggleFields() ile gösterilir veya gizlenir. #}
             <select name="type" id="sourceType" onchange="toggleFields()"
                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="csv"      {% if source and source.type == 'csv' %}selected{% endif %}>CSV</option>
@@ -44,6 +49,7 @@
         </div>
 
         <!-- Oracle alanları -->
+        {# Oracle alanları. Varsayılan port 1521'dir. DİKKAT: 'Service Name' ve 'Tablo' bu sürümde kaydedilmiyor (bkz. üstteki not). #}
         <div id="oracleFields" class="hidden">
             <div class="grid grid-cols-2 gap-4 mb-4">
                 <div>
@@ -80,6 +86,8 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Şifre</label>
+                    {# Şifre alanı açılışta boş gelir; mevcut şifre sayfaya yazılmaz. #}
+                    {# DİKKAT: Düzenlemede bu alan boş bırakılırsa şifre silinir, çünkü route tüm bağlantı bilgisini baştan yazıyor. #}
                     <input type="password" name="password"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
@@ -87,9 +95,12 @@
         </div>
 
         <!-- SqlAlchemy alanları -->
+        {# SqlAlchemy alanları: tek bir bağlantı adresi (URL) ve tablo adı. Örnek adresler placeholder olarak gösterilir. #}
         <div id="sqlalchemyFields" class="hidden">
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Connection URL</label>
+                {# Bağlantı adresi (URL) içinde şifre bulunabilir. #}
+                {# DİKKAT: Bu değer sayfaya 'value' olarak yazılıyor (düzenlemede görünür). Ayrıca düzenleme route'u url alanını kaydetmediği için bu tip kaynak düzenlenince URL kaybolabilir. #}
                 <input type="text" name="url" placeholder="mssql+pyodbc://user:pass@server/db?driver=ODBC+Driver+17"
                        value="{{ source.config.url if source and source.config else '' }}"
                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -135,6 +146,7 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Şifre</label>
+                    {# Veritabanı (PostgreSQL / MySQL / BigQuery) için şifre alanı. Şifre sayfaya yazılmaz; boş bırakılırsa düzenlemede şifre silinir (bkz. yukarıdaki DİKKAT). #}
                     <input type="password" name="password"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
@@ -153,6 +165,7 @@
     </form>
 </div>
 
+{# Tip seçimine göre alanları açıp kapatan küçük JavaScript. Sayfa açılınca son satırdaki toggleFields() çağrısı bir kez çalışır, böylece doğru alanlar görünür. #}
 <script>
 function toggleFields() {
     const type = document.getElementById('sourceType').value;

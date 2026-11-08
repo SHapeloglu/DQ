@@ -1,18 +1,25 @@
 {% extends "base.html" %}
+{# Sağlık skoru sayfası (/health). routers/ui.py içindeki 'health' route'u açar; değişken: scores (her kaynak için skor, renk ve son run zamanı). #}
+{# Kaynak kartına tıklanınca son 7 günün skor trendi çizilir (/api/health-score/{id}/trend). #}
 {% block title %}Sağlık Skoru — DQ{% endblock %}
 {% block content %}
+{# Kaynakların skorlarını kart olarak gösterir. Renk skora göre belirlenir: yeşil iyi, sarı orta, kırmızı kötü, gri ise veri yok. #}
 <div class="max-w-7xl mx-auto px-4 py-8">
   <div class="flex items-center justify-between mb-6">
     <h1 class="text-2xl font-bold text-gray-800">Sağlık Skoru Dashboard</h1>
+    {# KVKK raporu: tüm kaynakların kişisel veri (PII) bulgularını CSV dosyası olarak indirir. Dosya tarayıcıda oluşturulur; sunucuya yeni kayıt yazılmaz. #}
     <button onclick="downloadPiiCsv()" class="text-sm bg-yellow-50 border border-yellow-300 text-yellow-800 px-4 py-2 rounded-lg hover:bg-yellow-100 transition">⬇️ KVKK Raporu CSV</button>
   </div>
 
+  {# Hiç run yoksa skor kartları yerine bu mesaj gösterilir. #}
   {% if not scores %}
     <p class="text-gray-500">Henüz hiç run kaydı yok.</p>
   {% else %}
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
     {% for s in scores %}
+    {# Renk adını (green / yellow / red / grey) Tailwind sınıf adına çeviren sözlük. TODO(kontrol): Bu 'color' değişkeni sayfada şu an kullanılmıyor gibi görünüyor; renkler aşağıdaki if/elif bloklarından geliyor. #}
     {% set color = {"green":"green","yellow":"yellow","red":"red","grey":"gray"}[s.light] %}
+    {# DİKKAT: Kaynak adı onclick içinde tek tırnaklı bir JavaScript metnine konuyor. Adında tek tırnak veya özel karakter varsa JavaScript bozulur ve kötü amaçlı kod çalışabilir (XSS riski). Kod değiştirilmedi. #}
     <div class="bg-white rounded-xl shadow p-5 border border-gray-100 cursor-pointer hover:shadow-md transition"
          onclick="loadTrend({{ s.source_id }}, '{{ s.source_name }}')">
       <div class="flex items-center justify-between mb-3">
@@ -56,7 +63,10 @@
   {% endif %}
 </div>
 
+{# Grafik kütüphanesi Chart.js 4.4.0 CDN'den yüklenir. Trend grafiği bu kütüphane ile çizilir. #}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{# Sayfa JavaScript'i. loadTrend(): seçilen kaynağın 7 günlük skor verisini çekip trend panelini gösterir. downloadPiiCsv(): PII raporunu CSV olarak hazırlar. #}
+{# DİKKAT: CSV satırlarında alanlar çift tırnakla yazılıyor ama içindeki tırnaklar kaçışlanmıyor; bir kolon adında tırnak varsa dosya bozulur. #}
 <script>
 let chart = null;
 
