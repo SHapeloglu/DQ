@@ -320,3 +320,27 @@ class TestOData:
         client.post("/api/runs", json=sample_payload)
         data = client.get("/odata/Results?$skip=1").json()
         assert len(data["value"]) == 1
+
+
+# ── POST /api/runs: değer 0 NULL'a dönüşmemeli ───────────────────────────────
+
+def test_post_run_sifir_degeri_null_yazilmaz(client, sample_payload):
+    """value=0 kaydedilmeli (NULL değil); value yoksa current'a bakılmalı, o da 0 ise 0 yazılmalı."""
+    sample_payload["results"] = [
+        {"name": "sifir_value", "passed": True, "value": 0},
+        {"name": "sifir_current", "passed": True, "current": 0},
+    ]
+    resp = client.post("/api/runs", json=sample_payload)
+    assert resp.status_code == 201
+
+    db = _get_db()
+    try:
+        rows = db.execute(
+            "SELECT name, value FROM check_results WHERE run_id = ? ORDER BY name",
+            (sample_payload["run_id"],),
+        ).fetchall()
+    finally:
+        db.close()
+
+    values = {r["name"]: r["value"] for r in rows}
+    assert values == {"sifir_current": 0, "sifir_value": 0}
