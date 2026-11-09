@@ -131,8 +131,16 @@ def source_update(
     conn = get_conn()
     try:
         with conn.cursor() as cur:
+            # Parola alanı boş gönderildiyse mevcut parola korunur (sunucu adresi değiştirilirken parola silinmesin).
+            # Parolayı bilerek silmek için bu akış değil, kaynağı silip yeniden eklemek gerekir.
+            if type != "csv" and not password:
+                cur.execute("SELECT config FROM sources WHERE id = %s", (source_id,))
+                mevcut = cur.fetchone()
+                if mevcut:
+                    eski = mevcut["config"]
+                    eski = json.loads(eski) if isinstance(eski, str) else (eski or {})
+                    config["password"] = eski.get("password", "")
             cur.execute(
-                # DİKKAT: Düzenleme formunda şifre alanı boş gönderilirse, mevcut şifre korunmaz; boş değer yazılır.
                 "UPDATE sources SET name=%s, type=%s, config=%s WHERE id=%s",
                 (name, type, json.dumps(config), source_id)
             )
