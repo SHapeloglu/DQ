@@ -20,6 +20,7 @@ from fastapi.templating import Jinja2Templates
 
 from database import get_conn
 from extensions import checks_to_toml, AlertManager, run_migration, load_alert_manager
+from sifre_kasasi import encrypt_secret
 
 
 def register_routes(app: FastAPI, templates: Jinja2Templates):
@@ -261,6 +262,8 @@ def register_routes(app: FastAPI, templates: Jinja2Templates):
         Uyarı ayarlarını kaydeder (Slack, webhook, e-posta, SMTP). Kayıt varsa günceller, yoksa ekler; sonra ayar sayfasına yönlendirir.
         SMTP şifresi boş gönderilirse mevcut şifre korunur.
         """
+        # SMTP parolası şifrelenir; boşsa None kalır (COALESCE ile mevcut değer korunur).
+        smtp_pass_db = encrypt_secret(smtp_pass) if smtp_pass else None
         conn = get_conn()
         try:
             _ensure_alert_table(conn)
@@ -277,7 +280,7 @@ def register_routes(app: FastAPI, templates: Jinja2Templates):
                         WHERE id=%s
                     """, (slack_webhook, webhook_url, email_to, smtp_host,
                           # Şifre alanı boş gönderilirse mevcut SMTP şifresi korunur (COALESCE); yeni değer yazılırsa güncellenir.
-                          smtp_port, smtp_user, smtp_pass or None,
+                          smtp_port, smtp_user, smtp_pass_db,
                           alert_trigger, existing["id"]))
                 else:
                     cur.execute("""
@@ -286,7 +289,7 @@ def register_routes(app: FastAPI, templates: Jinja2Templates):
                              smtp_port, smtp_user, smtp_pass, alert_trigger)
                         VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
                     """, (slack_webhook, webhook_url, email_to, smtp_host,
-                          smtp_port, smtp_user, smtp_pass or None, alert_trigger))
+                          smtp_port, smtp_user, smtp_pass_db, alert_trigger))
             conn.commit()
         finally:
             conn.close()

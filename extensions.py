@@ -16,6 +16,7 @@ import urllib.request
 from datetime import datetime, timezone
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from sifre_kasasi import decrypt_secret, decrypt_config_password
 
 
 # ── 1. TOML Export ───────────────────────────────────────────────────────────
@@ -23,6 +24,8 @@ from email.mime.multipart import MIMEMultipart
 def checks_to_toml(source: dict, checks: list[dict]) -> str:
     """DB'deki source ve check'leri TOML formatına çevirir."""
     config = json.loads(source["config"]) if isinstance(source["config"], str) else source["config"]
+    # TOML çıktısında kullanılabilsin diye parola çözülür (kopya üzerinde; kaynak sözlük değişmez).
+    config = decrypt_config_password(dict(config))
 
     lines = [
         f"# DQ Export — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}",
@@ -393,7 +396,7 @@ def load_alert_manager(conn) -> AlertManager | None:
             smtp_host     = row.get("smtp_host", "smtp.gmail.com"),
             smtp_port     = int(row.get("smtp_port", 587)),
             smtp_user     = row.get("smtp_user"),
-            smtp_pass     = row.get("smtp_pass"),
+            smtp_pass     = decrypt_secret(row.get("smtp_pass")),
         )
     except Exception:
         return None
