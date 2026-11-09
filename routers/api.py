@@ -7,6 +7,8 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from sifre_kasasi import encrypt_secret
+
 from database import get_conn, release_conn
 
 router = APIRouter()
@@ -299,7 +301,6 @@ def api_alert_settings_get():
 
 @router.put("/api/alert-settings")
 def api_alert_settings_put(payload: dict):
-    # DİKKAT: Webhook adresi ve SMTP şifresi veritabanına düz metin olarak yazılır. Bu bilgiler gizli tutulmalıdır.
     """
     Uyarı ayarlarını kaydeder. Yalnız izinli alanlar yazılır. Ayar satırı yoksa oluşturulur (id=1), varsa güncellenir.
     Hiç izinli alan yoksa 400 döner.
@@ -309,6 +310,9 @@ def api_alert_settings_put(payload: dict):
     # GET maskeli parolayı geri gönderir; bu değer kayıtlı parolanın üzerine yazılmamalı.
     if data.get("smtp_pass") == "********":
         del data["smtp_pass"]
+    # SMTP parolası veritabanına şifreli (enc:) yazılır.
+    if data.get("smtp_pass"):
+        data["smtp_pass"] = encrypt_secret(data["smtp_pass"])
     if not data:
         from fastapi import HTTPException
         raise HTTPException(400, "Güncellenecek alan yok")

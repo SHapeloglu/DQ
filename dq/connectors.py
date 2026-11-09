@@ -653,6 +653,9 @@ def build_connector(config: dict) -> BaseConnector:
     """
     # DİKKAT: `pop` çağıranın sözlüğünden "type" anahtarını siler. Aynı sözlüğü ikinci kez kullanırsanız "type" yoktur.
     kind = config.pop("type")
+    # Parola şifreli (enc:) saklanmış olabilir; bağlayıcıya her zaman çözülmüş değer gider.
+    from sifre_kasasi import decrypt_config_password
+    decrypt_config_password(config)
     cls = CONNECTOR_REGISTRY.get(kind)
     if cls is None:
         raise ValueError(f"Bilinmeyen connector tipi: '{kind}'. "

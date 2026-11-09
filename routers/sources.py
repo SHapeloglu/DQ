@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from database import get_conn, release_conn
+from sifre_kasasi import encrypt_config_password, decrypt_config_password
 
 router = APIRouter()
 # Şablon klasörü göreli bir yol olarak verilmiş; uygulama proje kök klasöründen başlatılmalıdır.
@@ -61,9 +62,10 @@ def source_create(
     if type == "csv":
         config["path"] = path
     else:
-        # DİKKAT: Şifre dahil bağlantı bilgileri veritabanına düz metin JSON olarak yazılır.
         config = {"host": host, "port": port, "database": database,
                   "user": user, "password": password}
+        # Parola config'e yazılmadan önce şifrelenir (sifre_kasasi).
+        encrypt_config_password(config)
 
     conn = get_conn()
     try:
@@ -94,7 +96,8 @@ def source_edit(request: Request, source_id: int):
         raise HTTPException(404)
 
     # DİKKAT: Bu sözlük şablona gönderilir; şifre de form alanında görünebilir.
-    source["config"] = json.loads(source["config"])
+    # Form alanına gerçek parola konur (mevcut davranış); DB'de değer şifreli kalır.
+    source["config"] = decrypt_config_password(json.loads(source["config"]))
     return templates.TemplateResponse("source_form.html", {
         "request": request, "source": source
     })
@@ -120,9 +123,10 @@ def source_update(
     if type == "csv":
         config["path"] = path
     else:
-        # DİKKAT: Şifre dahil bağlantı bilgileri veritabanına düz metin JSON olarak yazılır.
         config = {"host": host, "port": port, "database": database,
                   "user": user, "password": password}
+        # Parola config'e yazılmadan önce şifrelenir (sifre_kasasi).
+        encrypt_config_password(config)
 
     conn = get_conn()
     try:
