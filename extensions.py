@@ -24,8 +24,10 @@ from sifre_kasasi import decrypt_secret, decrypt_config_password
 def checks_to_toml(source: dict, checks: list[dict]) -> str:
     """DB'deki source ve check'leri TOML formatına çevirir."""
     config = json.loads(source["config"]) if isinstance(source["config"], str) else source["config"]
-    # TOML çıktısında kullanılabilsin diye parola çözülür (kopya üzerinde; kaynak sözlük değişmez).
-    config = decrypt_config_password(dict(config))
+    # Parola dışa aktarılmaz: TOML indirilebilir bir dosyadır ve GET yetkisi olan herkes alabilir.
+    # Ne düz metin ne de şifreli değer yazılır; yalnız bir açıklama satırı bırakılır.
+    parola_var = "password" in config
+    config = {k: v for k, v in dict(config).items() if k != "password"}
 
     lines = [
         f"# DQ Export — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}",
@@ -40,6 +42,8 @@ def checks_to_toml(source: dict, checks: list[dict]) -> str:
             lines.append(f'{k} = "{v}"')
         else:
             lines.append(f"{k} = {v}")
+    if parola_var:
+        lines.append("# password dışa aktarılmadı; kaynak ayarlarından yeniden girin")
 
     lines.append("")
 
