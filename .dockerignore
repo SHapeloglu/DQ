@@ -1,0 +1,25 @@
+# Docker build bağlamından çıkarılanlar. Gizli değerler ve geliştirme artıkları imaja girmesin diye.
+# Gizli dosyalar çalışma zamanında compose ile (env_file / secrets) verilir; imaja kopyalanmaz.
+**/.env
+**/.env.*
+secrets/
+**/secrets/
+
+# Sürüm kontrol ve önbellekler
+.git/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+.pytest_cache/
+graphify-out/
+
+# Yerel veritabanı dosyaları (SQLite geliştirme)
+**/*.db
+
+# Testler ve geliştirme araçları (imaj çalışması için gerekmez)
+tests/
+.claude/
+docker-compose.yml
+
+# Belgeler (kod tarafından okunmuyor)
+*.md

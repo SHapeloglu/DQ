@@ -1,6 +1,6 @@
 # DQ (veri kalitesi) web arayüzünün Docker imajı. Python 3.11 üzerine kurulur.
 # Adımlar: derleme araçları, Python bağımlılıkları, proje dosyaları, uvicorn ile başlatma.
-# DİKKAT: bu dosyada USER tanımlı değil; konteyner root olarak çalışır (düzeltilmedi, bilgi amaçlı).
+# Konteyner root olmayan 'dq' kullanıcısı (uid 10001) ile çalışır. Build bağlamı .dockerignore ile daraltılmıştır.
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -21,8 +21,16 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Uygulama dosyaları
 # Projenin geri kalan tüm dosyaları imaja kopyalanır.
-# DİKKAT: bu klasörde .dockerignore dosyası yok; .env ve secrets klasörü de imaja girer. .dockerignore eklenmesi önerilir (düzeltilmedi).
+# .dockerignore sayesinde .env, secrets/, .git, testler ve *.db imaja girmez.
 COPY . .
+
+# Root olmayan kullanıcı. Yalnızca /app dizininin sahibi değişir: uygulama burada SQLite dosyası (dq_metrics.db, dq_results.db) oluşturabilir.
+# Kod dosyaları root sahipliğinde kalır (dq yazamaz). ./dags bind mount'u ana makinedeki 644/755 izinleriyle okunabilir.
+# /run/secrets dosyalarının dq tarafından okunabilirliği canlı deploy'da doğrulanmalı (compose secret izinleri).
+RUN groupadd --system --gid 10001 dq \
+    && useradd --system --uid 10001 --gid dq --no-create-home --shell /usr/sbin/nologin dq \
+    && chown dq:dq /app
+USER dq
 
 EXPOSE 8000
 
