@@ -65,8 +65,8 @@ def _get_custom_script_fn(script_id: int):
     
     try:
         conn = get_conn()
-        # TODO(kontrol): `mysql.connector` ve `dictionary=True` yalnız mysql-connector-python ile çalışır. Proje genelinde pymysql kullanılıyor; bu yol kurulu değilse hata verebilir.
-        with conn.cursor(dictionary=True) as cur:
+        # Bağlantı database.get_conn (pymysql, DictCursor) ile açılır; satırlar zaten sözlüktür.
+        with conn.cursor() as cur:
             cur.execute("SELECT code, function_name FROM custom_scripts WHERE id = %s AND is_active = 1", (script_id,))
             row = cur.fetchone()
         # DİKKAT: Sorgu hata verirse bu satıra gelinmez ve bağlantı havuza geri verilmez (finally bloğu yok).

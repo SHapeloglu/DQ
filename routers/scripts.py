@@ -17,7 +17,7 @@ def scripts_list(request: Request, msg: str = ""):
     """Custom scripts listesi"""
     conn = get_conn()
     try:
-        with conn.cursor(dictionary=True) as cur:
+        with conn.cursor() as cur:
             cur.execute("""
                 SELECT id, name, description, is_active, created_at, function_name
                 FROM custom_scripts ORDER BY id DESC
@@ -82,7 +82,7 @@ def script_edit(request: Request, script_id: int):
     """Script düzenleme formu"""
     conn = get_conn()
     try:
-        with conn.cursor(dictionary=True) as cur:
+        with conn.cursor() as cur:
             cur.execute("SELECT * FROM custom_scripts WHERE id = %s", (script_id,))
             script = cur.fetchone()
     finally:
