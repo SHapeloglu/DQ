@@ -52,3 +52,23 @@ def test_profile_export_json():
         response = client.get('/api/profile-export/1?format=json')
         assert response.status_code == 200
         assert 'application/json' in response.headers['content-type']
+
+
+def test_profile_export_404_when_no_profile():
+    """Profil kaydı yoksa 404 dönmeli (500'e çevrilmemeli)."""
+    from routers.api import router
+    from fastapi import FastAPI
+
+    app = FastAPI()
+    app.include_router(router)
+    client = TestClient(app)
+
+    with patch('database.get_conn') as mock_get_conn:
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall.return_value = []
+        mock_conn.cursor.return_value = mock_cursor
+        mock_get_conn.return_value = mock_conn
+
+        response = client.get('/api/profile-export/999?format=csv')
+        assert response.status_code == 404

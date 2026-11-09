@@ -620,7 +620,6 @@ async def profile_export(source_id: int, format: str = "csv"):
         
         rows = cursor.fetchall()
         if not rows:
-            # DİKKAT: Bu HTTPException, aşağıdaki `except Exception` bloğu tarafından yakalanır ve 500 olarak döner. Yani 404 yerine 500 gider.
             raise HTTPException(status_code=404, detail="Profil verisi bulunamadı")
         
         cursor.close()
@@ -678,91 +677,7 @@ async def profile_export(source_id: int, format: str = "csv"):
                 headers={"Content-Disposition": f"attachment; filename={filename}"}
             )
     
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-# DİKKAT: Bu ikinci `profile_export` üstünde route dekoratörü (@router) yok; FastAPI bunu kaydetmez, ölü koddur. Ayrıca bu gövde `io`, `csv`, `json` ve `FileResponse` adlarını kullanır ama bunları içe aktarmaz.
-async def profile_export(source_id: int, format: str = "csv"):
-    """Profil istatistiklerini CSV/JSON olarak indir."""
-    try:
-        from database import get_conn
-        conn = get_conn()
-        cursor = conn.cursor()
-        
-        cursor.execute("""
-            SELECT source_id, column_name, col_type, row_count, null_pct, 
-                   distinct_count, min_val, max_val, avg_val, is_pii, 
-                   pii_type, business_name, description, owner, tags
-            FROM column_profiles 
-            WHERE source_id = %s
-            ORDER BY column_name
-        """, (source_id,))
-        
-        rows = cursor.fetchall()
-        if not rows:
-            raise HTTPException(status_code=404, detail="Profil verisi bulunamadı")
-        
-        cursor.close()
-        
-        if format == "json":
-            data = []
-            for row in rows:
-                data.append({
-                    "column_name": row[1],
-                    "type": row[2],
-                    "row_count": row[3],
-                    "null_pct": round(float(row[4]) if row[4] else 0, 2),
-                    "distinct_count": row[5],
-                    "min": row[6],
-                    "max": row[7],
-                    "avg": round(float(row[8]) if row[8] else 0, 2),
-                    "is_pii": bool(row[9]),
-                    "pii_type": row[10],
-                    "business_name": row[11],
-                    "description": row[12],
-                    "owner": row[13],
-                    "tags": row[14]
-                })
-            
-            output = io.StringIO()
-            json.dump(data, output, indent=2, ensure_ascii=False)
-            output.seek(0)
-            filename = f"profile_source_{source_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-            return FileResponse(
-                io.BytesIO(output.getvalue().encode('utf-8')),
-                media_type="application/json",
-                filename=filename
-            )
-        
-        else:  # CSV
-            output = io.StringIO()
-            writer = csv.writer(output)
-            writer.writerow([
-                "Column", "Type", "RowCount", "NullPct", "DistinctCount",
-                "Min", "Max", "Avg", "IsPII", "PIIType", "BusinessName",
-                "Description", "Owner", "Tags"
-            ])
-            for row in rows:
-                writer.writerow([
-                    row[1], row[2], row[3],
-                    round(float(row[4]) if row[4] else 0, 2),
-                    row[5], row[6], row[7],
-                    round(float(row[8]) if row[8] else 0, 2),
-                    "Yes" if row[9] else "No",
-                    row[10], row[11], row[12], row[13], row[14]
-                ])
-            
-            output.seek(0)
-            filename = f"profile_source_{source_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-            return FileResponse(
-                io.BytesIO(output.getvalue().encode('utf-8')),
-                media_type="text/csv",
-                filename=filename
-            )
-    
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-
-

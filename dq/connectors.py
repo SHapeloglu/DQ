@@ -113,11 +113,10 @@ class BigQueryConnector(BaseConnector):
 # ── CSV / dosya tabanlı ─────────────────────────────────────────────────────
 
 class CsvConnector(BaseConnector):
-    # TODO(kontrol): Bu açıklama Parquet/JSON diyor, ama `connect()` yalnız `read_csv_auto` kullanıyor. Parquet/JSON dosyası verilirse okuma hata verebilir; kod doğrulanmalı.
-    """DuckDB ile CSV/Parquet/JSON okur — SQL destekli."""
+    """DuckDB ile CSV okur — SQL destekli."""
 
     def __init__(self, path: str):
-        """CSV, Parquet veya JSON dosyasının yolunu saklar. Dosya `connect()` içinde DuckDB'ye bağlanır."""
+        """CSV dosyasının yolunu saklar. Dosya `connect()` içinde DuckDB'ye bağlanır."""
         self.path = path
         self._conn = None
 

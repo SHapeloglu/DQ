@@ -140,14 +140,17 @@ def post_run(payload: RunPayload):
             passed = r.get("passed")
             if passed is None:
                 passed = not r.get("is_anomaly", False)
+            # `or` kullanılmaz: değer 0 (falsy) ise current'a düşüp NULL yazılırdı.
+            value = r.get("value")
+            if value is None:
+                value = r.get("current")
             db.execute(
                 "INSERT INTO check_results (run_id,name,passed,value,expected,run_at) "
                 "VALUES (?,?,?,?,?,?)",
                 (run_id,
                  r.get("name") or r.get("metric_name", "unknown"),
                  int(bool(passed)),
-                 # DİKKAT: `or` kullanıldığı için değer 0 ise (falsy) boş (NULL) kaydedilir. Sıfır değerleri kaybolabilir; düzeltilmesi önerilir.
-                 r.get("value") or r.get("current"),
+                 value,
                  str(r.get("expected", "")),
                  run_at),
             )
