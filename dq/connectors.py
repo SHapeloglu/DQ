@@ -123,13 +123,13 @@ class CsvConnector(BaseConnector):
     def connect(self):
         """
         DuckDB bağlantısı açar ve dosyayı `source` adlı bir görünüm (view) olarak kaydeder. Böylece sorgularda `FROM source` yazılabilir.
-        Dosya `read_csv_auto` ile okunur; ayraç ve sütun türleri DuckDB tarafından otomatik tahmin edilir.
+        Dosya DuckDB `read_csv` ile (ayraç ve sütun türleri otomatik tahmin edilir) okunur; yol parametre olarak verilir.
         """
         import duckdb
         self._conn = duckdb.connect()
-        # Dosyayı 'tablo' olarak kaydet
-        # DİKKAT: dosya yolu doğrudan SQL metnine ekleniyor. Yolda tek tırnak olursa sorgu bozulur; yol kullanıcıdan geliyorsa dikkatli olun.
-        self._conn.execute(f"CREATE VIEW source AS SELECT * FROM read_csv_auto('{self.path}')")
+        # Yol SQL metnine değil, DuckDB Python API'sine parametre olarak verilir; yoldaki tırnak ya da SQL ifadesi çalıştırılamaz.
+        rel = self._conn.read_csv(self.path)
+        rel.create_view("source")
 
     def execute(self, query: str) -> list[dict]:
         """SQL sorgusunu DuckDB'de çalıştırır. Sonucu pandas tablosuna çevirip satır sözlükleri listesi olarak döndürür."""
