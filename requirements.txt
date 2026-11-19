@@ -11,6 +11,8 @@ pymongo>=4.0
 ibm-db>=2.3.0
 ibm-db-sa>=0.4.0
 statsmodels==0.14.2
+# pandas 3.x ile statsmodels 0.14.2 uyumsuz: holtwinters import'u TypeError verir ve anomali sonucu sessizce False döner (2026-11-19)
+pandas>=2.0,<3
 numpy==1.26.4
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
