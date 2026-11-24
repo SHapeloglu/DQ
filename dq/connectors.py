@@ -2,6 +2,8 @@
 Connector katmanı — her veri kaynağı bu arayüzü uygular.
 Yeni bir kaynak eklemek için sadece BaseConnector'ı kalıt al.
 """
+import os
+from pathlib import Path
 from abc import ABC, abstractmethod
 
 
@@ -120,16 +122,35 @@ class CsvConnector(BaseConnector):
         self.path = path
         self._conn = None
 
+    def _guvenli_yol(self) -> str:
+        """
+        Yolun `DQ_CSV_BASE` ortam değişkeninde verilen dizin altında olduğunu doğrular ve çözülmüş mutlak yolu döner.
+        `DQ_CSV_BASE` tanımlı değilse CSV kaynağı kapalıdır (güvenli varsayılan). Sembolik bağlantılar çözüldükten sonra
+        kontrol edilir; böylece taban dizine bağlanan dış bir dosya da reddedilir.
+        """
+        taban = os.environ.get("DQ_CSV_BASE", "").strip()
+        if not taban:
+            raise ValueError("CSV kaynağı kapalı: DQ_CSV_BASE tanımlı değil")
+        taban_yol = Path(taban).resolve()
+        hedef = Path(self.path).resolve()
+        try:
+            hedef.relative_to(taban_yol)
+        except ValueError:
+            raise ValueError(f"CSV yolu DQ_CSV_BASE dışında: {self.path}")
+        return str(hedef)
+
     def connect(self):
         """
         DuckDB bağlantısı açar ve dosyayı `source` adlı bir görünüm (view) olarak kaydeder. Böylece sorgularda `FROM source` yazılabilir.
-        Dosya `read_csv_auto` ile okunur; ayraç ve sütun türleri DuckDB tarafından otomatik tahmin edilir.
+        Dosya DuckDB `read_csv` ile (ayraç ve sütun türleri otomatik tahmin edilir) okunur; yol parametre olarak verilir.
+        Yol önce `_guvenli_yol()` ile `DQ_CSV_BASE` altında olduğu doğrulanır.
         """
+        yol = self._guvenli_yol()
         import duckdb
         self._conn = duckdb.connect()
-        # Dosyayı 'tablo' olarak kaydet
-        # DİKKAT: dosya yolu doğrudan SQL metnine ekleniyor. Yolda tek tırnak olursa sorgu bozulur; yol kullanıcıdan geliyorsa dikkatli olun.
-        self._conn.execute(f"CREATE VIEW source AS SELECT * FROM read_csv_auto('{self.path}')")
+        # Yol SQL metnine değil, DuckDB Python API'sine parametre olarak verilir; yoldaki tırnak ya da SQL ifadesi çalıştırılamaz.
+        rel = self._conn.read_csv(yol)
+        rel.create_view("source")
 
     def execute(self, query: str) -> list[dict]:
         """SQL sorgusunu DuckDB'de çalıştırır. Sonucu pandas tablosuna çevirip satır sözlükleri listesi olarak döndürür."""

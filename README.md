@@ -1,16 +1,18 @@
 # DQ — Data Quality Platform
 
-> **Durum notu (2026-10-25 denetimi):** Gerçek veritabanı bağlantısı ortak MySQL'deki **uygulama kullanıcısıdır** (`DB_HOST=mysql-ortak`, `DB_USER=uygulama`), root değildir; README'deki `DB_USER=root` ve "MySQL root şifresi" ifadeleri eskidir. Kurulum için dışarıda oluşturulmuş `ortak-db` Docker ağı ve `mysql-ortak` gerekir. Yönlendirici dosyaları kökte değil `routers/` altındadır (`routers/checks.py`, `scripts.py`, `sources.py`, `ui.py`).
+> **Durum notu (2026-11-14):** Bu belge kodla karşılaştırıldı (`main` f2bc7c6). Veritabanı bağlantısı ortak MySQL'deki **uygulama kullanıcısıdır** (`DB_HOST=mysql-ortak`, `DB_USER=uygulama`), root değildir. Kurulum için dışarıda hazır bir `mysql-ortak` konteyneri ve `ortak-db` Docker ağı gerekir. Yönlendirici dosyaları `routers/` altındadır. 2026-11-14 denetimi: aşağıdaki belge–kod farkları işaretlendi.
 
 > **Self-hosted, açık kaynak veri kalitesi platformu.**  
 > PII/KVKK tespiti, anomali analizi ve 19 assert tipiyle rakip ticari çözümlere kıyasla **%99 daha düşük toplam sahip olma maliyeti.**
+>
+> *Not: Bu rakamlar kaynaklı doğrulanmadı (bkz. `docs/BENCHMARK.md`).*
 
 [![Python](https://img.shields.io/badge/Python-3.11-blue)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110-green)](https://fastapi.tiangolo.com/)
 [![MySQL](https://img.shields.io/badge/MySQL-8.0-orange)](https://www.mysql.com/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-blue)](https://docs.docker.com/compose/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-lightgrey)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-196%20passed-brightgreen)]()
+[![Tests](https://img.shields.io/badge/Tests-251%20passed-brightgreen)]()
 
 ---
 
@@ -53,13 +55,15 @@ DQ, özellikle **PII-yoğun** ve **maliyet bilinçli** kuruluşlar için tasarla
 ### 🔍 19 Assert Tipi
 `not_empty`, `regex_match`, `accepted_values`, `freshness_hours`, `row_count_between`, `referential_integrity`, `equals`, `between`, `greater_than`, `less_than`, `completeness_ratio`, `statistical_anomaly`, `schema_drift`, `schema_check`, `duplicate_row`, `custom_sql`, `volume_anomaly`, `zscore_anomaly`, `row_condition`
 
+> **Not:** Kullanılabilir (`_ASSERTION_MAP`) assert adları 17 tanedir; `not_empty`, `regex_match`, `accepted_values`, `freshness_hours` yalnızca engine'de tanımlı, konfigürasyondan çağrılamaz.
+
 ### 🤖 Anomali Tespiti
 - **Z-Score**: Küçük örneklem (n < 8) için
 - **EWMA** (Exponential Weighted Moving Average): Orta örneklem (n < 14) için
 - **Holt-Winters**: Büyük örneklem (n ≥ 14) için; mevsimsellik desteği
 - **Otomatik yöntem seçimi**: n değerine göre en uygun algoritma
 - **Trend yönü analizi**: ↑ Artış / → Sabit / ↓ Düşüş (%5 tolerans)
-- **Read replica desteği**: Okuma/yazma ayrımı ile MetricStore
+- **Read replica desteği**: Okuma/yazma ayrımı ile MetricStore (kod hazır, bağlı değil)
 
 ### 🔐 PII/KVKK Tespiti
 - 24 adet önceden tanımlı PII pattern (TC kimlik, IBAN, e-posta, telefon vb.)
@@ -71,6 +75,8 @@ DQ, özellikle **PII-yoğun** ve **maliyet bilinçli** kuruluşlar için tasarla
 - Kullanıcı tanımlı Python fonksiyonları yükleme
 - AST tabanlı güvenlik doğrulaması
 - Live test/dry-run arayüzü
+
+> **Not:** Custom script kontrol olarak çalışmaz; kayıt ve test çalışır.
 
 ### 🧙 Wizard UI
 - Adım adım kaynak bağlantısı + profil çalıştırma + kural ekleme
@@ -129,16 +135,21 @@ DQ, özellikle **PII-yoğun** ve **maliyet bilinçli** kuruluşlar için tasarla
 - CSV dosyaları
 - SQLAlchemy uyumlu herhangi bir kaynak
 
+> **Not:** CSV (DuckDB), PostgreSQL (psycopg2), BigQuery ve Oracle (cx_Oracle) sürücüleri `requirements.txt`'te yok; konteynerde bu kaynakların kullanımı ImportError verir.
+
 ---
 
 ## Hızlı Başlangıç
 
 ### Gereksinimler
 - Docker & Docker Compose
+- Dışarıda hazır ortak MySQL (`mysql-ortak`) ve `ortak-db` Docker ağı
 - Python 3.11+ (lokal geliştirme için)
 - Git
 
 ### 3 Adımda Kur
+
+Önce `.env` ve `secrets/.env.secrets` dosyalarını oluşturun; compose bunları zorunlu okur.
 
 ```bash
 # 1. Repoyu klonla
@@ -157,7 +168,7 @@ echo ""                  > secrets/files/ALERT_SLACK_WEBHOOK
 docker compose up -d
 ```
 
-Tarayıcıda aç: **http://localhost:8002**
+Tarayıcıda aç: **http://localhost:8002**. Önce giriş ekranı açılır. İlk admin parolası `DQ_ADMIN_PASSWORD` ile verilir; verilmezse rastgele üretilir ve ilk başlatmada log'a bir kez yazılır.
 
 ---
 
@@ -171,7 +182,14 @@ Proje kökünde `.env` dosyası oluştur:
 DB_HOST=mysql-ortak   # sunucudaki ortak MySQL (ağ ortak-db); DB_USER=uygulama
 DB_PORT=3306
 DB_NAME=dq
-DB_USER=root
+DB_USER=uygulama
+
+# Oturum ve güvenlik (değerleri belgeye veya git'e yazmayın)
+DQ_SECRET_KEY=...        # oturum anahtarı; boşsa her başlatmada rastgele (oturumlar düşer)
+DQ_ADMIN_PASSWORD=...    # ilk admin parolası; boşsa rastgele, log'a bir kez yazılır
+DQ_API_TOKEN=...         # Airflow DAG ve Power BI OData gibi makine istemcileri için
+DQ_ENC_KEY=...           # kaynak/SMTP parolalarını şifreler; kaybedilirse şifreli değerler çözülemez
+DQ_COOKIE_SECURE=1       # yalnız HTTPS arkasında kullanın
 ```
 
 Hassas bilgiler için `secrets/` klasörü kullanılır (Docker Secrets):
@@ -179,7 +197,7 @@ Hassas bilgiler için `secrets/` klasörü kullanılır (Docker Secrets):
 ```
 secrets/
 ├── files/
-│   ├── DB_PASSWORD          # MySQL root şifresi
+│   ├── DB_PASSWORD          # MySQL uygulama kullanıcısının (uygulama) şifresi
 │   ├── METRICS_PG_DSN       # PostgreSQL MetricStore bağlantısı (opsiyonel)
 │   ├── METRICS_PG_PASSWORD  # PostgreSQL şifresi (opsiyonel)
 │   ├── ALERT_SMTP_PASS      # E-posta alert şifresi (opsiyonel)
@@ -200,14 +218,9 @@ psql -U postgres -d dqmetrics -f scripts/migrate_metrics_postgres.sql
 echo "postgresql://dquser:pass@localhost:5432/dqmetrics" > secrets/files/METRICS_PG_DSN
 ```
 
-### Read Replica (Opsiyonel)
+### Read Replica (Kod hazır, bağlı değil)
 
-```env
-# .env.secrets içinde
-METRICS_PG_READ_DSN=postgresql://readonly:pass@replica:5432/dqmetrics
-```
-
-Ayarlanmazsa primary connection otomatik kullanılır.
+`MetricStore(read_replica_dsn=...)` parametresi okuma yükünü ikincil sunucuya yönlendirebilir. Ancak şu an hiçbir yapılandırma bu parametreyi vermiyor; ortam değişkeni de okunmuyor. Bağlanana kadar okumalar primary üzerinden yapılır.
 
 ### Lokal Geliştirme
 
@@ -241,6 +254,8 @@ pytest tests/ -q
 | `http://localhost:8002/runs` | Çalışma geçmişi |
 
 ### REST API
+
+Tüm `/api/*` uçları girişten sonra oturum çerezi ya da `X-DQ-Token` başlığı ister. Örnekler (çerez veya token eklenmiş olmalı):
 
 ```bash
 # Profil çalıştır
@@ -304,16 +319,18 @@ tags   = ["anomaly"]
 
 | Assert Tipi | Açıklama | `assert_value` Örneği |
 |---|---|---|
-| `not_empty` | Değer boş/null değil | — |
+| `not_empty` (map'te değil) | Değer boş/null değil | — |
+| `is_not_null` | Değer None veya 0 değil (0 boş sayılır) | — |
 | `equals` | Değer eşit | `100` |
 | `greater_than` | Değer büyük | `0` |
 | `less_than` | Değer küçük | `5.0` |
 | `between` | Değer aralıkta | `[1, 100]` |
 | `row_count_between` | Satır sayısı aralıkta | `[1000, 50000]` |
+| `row_count_at_least` | Satır sayısı en az N | `1000` |
 | `completeness_ratio` | Doluluk oranı eşiği | `0.95` |
-| `regex_match` | Regex eşleşmesi | `^\d{10}$` |
-| `accepted_values` | İzin verilen değerler | `["A","B","C"]` |
-| `freshness_hours` | Veri tazeliği | `24` |
+| `regex_match` (map'te değil) | Regex eşleşmesi | `^\d{10}$` |
+| `accepted_values` (map'te değil) | İzin verilen değerler | `["A","B","C"]` |
+| `freshness_hours` (map'te değil) | Veri tazeliği | `24` |
 | `referential_integrity` | Referans bütünlüğü | `["users","id"]` |
 | `schema_drift` | Kolon sayısı değişmedi | `12` |
 | `schema_check` | Kolon varlığı + tip kontrolü | `{"id":"int","name":"varchar"}` |
@@ -323,7 +340,7 @@ tags   = ["anomaly"]
 | `volume_anomaly` | Satır sayısı değişim % | `30.0` |
 | `row_condition` | WHERE koşulu ihlali | `"amount > 0"` |
 | `custom_sql` | Kullanıcı tanımlı SQL | `0` |
-| `custom_script` | Python fonksiyonu | `1` (script ID) |
+| `custom_script` (çalışmaz, bkz. Custom Assertion Scripts bölümü) | Python fonksiyonu | `1` (script ID) |
 
 ---
 
@@ -395,9 +412,11 @@ assert_type = "custom_script"
 assert_value = "1"
 ```
 
+> **Not (2026-11-14):** Script kaydetme ve test etme çalışır, ancak `custom_script` tipi kontrol motoruna bağlı değildir; bu örnek şu an bir kontrol olarak çalışmaz. Bağlantı ayrı bir iştir (bkz. `task.md`).
+
 ### Güvenlik
 
-AST doğrulaması ile aşağıdakiler otomatik reddedilir:
+AST doğrulaması ile aşağıdakiler otomatik reddedilir (yalnız bilinen metot adlarına izin verilir; alt çizgili öznitelikler yasaktır):
 
 ```python
 # ❌ YASAK — import reddedilir
@@ -431,14 +450,16 @@ with DAG("dq_daily", schedule_interval="@daily") as dag:
     )
 ```
 
+> **Not:** Hazır DAG dosyaları (`dags/`) şu an `dq_operator` modülünü import ettiği için import hatası verir; bkz. `task.md`.
+
 ### Hazır DAG'lar
 
 | DAG | Açıklama |
 |-----|----------|
-| `dq_mysql_dag.py` | MySQL kaynak kontrolleri |
-| `dq_postgres_dag.py` | PostgreSQL kaynak kontrolleri |
-| `dq_oracle_dag.py` | Oracle kaynak kontrolleri |
-| `dq_mongo_dag.py` | MongoDB kaynak kontrolleri |
+| `dq_mysql_dag.py` | MySQL kaynak kontrolleri (import hatası, düzeltme bekliyor) |
+| `dq_postgres_dag.py` | PostgreSQL kaynak kontrolleri (import hatası, düzeltme bekliyor) |
+| `dq_oracle_dag.py` | Oracle kaynak kontrolleri (import hatası, düzeltme bekliyor) |
+| `dq_mongo_dag.py` | MongoDB kaynak kontrolleri (import hatası, düzeltme bekliyor) |
 | `dq_scheduled_profiling_dag.py` | Zamanlanmış profilleme |
 
 ---
@@ -461,6 +482,22 @@ TOML dosyalarında `secret:` prefix kullanılır:
 [source]
 password = "secret:DB_PASSWORD"   # secrets_loader.py ile çözülür
 ```
+
+> **Sınır:** Özel script'ler aynı süreçte, kısıtlı builtins ile çalışır. Zaman ve bellek sınırı yoktur; yazma yetkisi editor ve admin rollerindedir. Tam izolasyon (ayrı süreç/konteyner) henüz uygulanmadı.
+
+### Kimlik Doğrulama ve Yetki
+
+- Giriş dışındaki her sayfa ve API oturum ister (global yetki kapısı).
+- Roller: `viewer` < `editor` < `admin`. `/admin/`, `/settings/` ve `/api/alert-settings` yalnız admin içindir.
+- Makine istemcileri (Airflow DAG, Power BI OData) `DQ_API_TOKEN` ile `X-DQ-Token` başlığı kullanır; yalnız `/api/*` ve `/odata/*` yollarında editor yetkisi verir.
+- Rol her istekte veritabanından doğrulanır; kullanıcı silinirse erişim kesilir.
+- Oturum çerezi 8 saat geçerlidir. `/docs` ve `/openapi.json` kapalıdır.
+
+### Şifreleme
+
+- Kaynak ve SMTP parolaları `DQ_ENC_KEY` ile Fernet kullanılarak şifrelenir (`enc:` öneki). Anahtar kaybolursa şifreli değerler çözülemez; güvenli bir yerde yedekleyin.
+- TOML dışa aktarımı parolayı içermez.
+- Konteyner root olmayan `dq` kullanıcısıyla (uid 10001) çalışır.
 
 ### GPG Şifreleme
 
@@ -500,9 +537,10 @@ DQ/
 │   ├── anomaly.py             # AnomalyDetector (Z-Score, EWMA, Holt-Winters)
 │   ├── config.py              # SodaConfig + _ASSERTION_MAP
 │   ├── metrics.py             # MetricStore (SQLite/PostgreSQL)
-│   ├── connectors.py          # 8 veritabanı connector
+│   ├── connectors.py          # 7 kayıtlı connector tipi
 │   ├── scoring.py             # Health score hesaplama
-│   └── reporter_v2.py         # Rapor üretimi
+│   ├── reporter_v2.py         # Rapor üretimi
+│   └── api.py                 # SQLite tabanlı ayrı FastAPI uygulaması (kullanılmıyor, deploy edilmiyor)
 ├── routers/
 │   ├── api.py                 # REST API endpoint'leri
 │   ├── checks.py              # Kural CRUD
@@ -511,13 +549,19 @@ DQ/
 │   └── ui.py                  # Web sayfaları
 ├── templates/                 # Jinja2 HTML şablonları
 ├── dags/                      # Airflow DAG'ları + TOML config'ler
-├── tests/                     # pytest test suite (196 test)
+├── tests/                     # pytest test suite (251 test)
 ├── scripts/                   # Yardımcı scriptler
 ├── secrets/                   # Credential yönetimi
 ├── docs/                      # Benchmark + session başlangıç notları
-├── database.py                # MySQL şema init
+├── auth.py                    # Oturum, roller, yetki kapısı
+├── database.py                # MySQL bağlantı havuzu ve şema init
 ├── profiler.py                # PII tespiti + profilleme
 ├── extensions.py              # Alert manager (Slack/email/webhook)
+├── main.py                    # Web UI giriş noktası (uvicorn main:app)
+├── main_extensions.py         # main.py'ye eklenecek route'lar (register_routes)
+├── toml_import.py             # TOML parse + DB kaydı
+├── cache_layer.py             # TTL'li in-memory profil cache'i
+├── sifre_kasasi.py            # Kaynak/SMTP parolalarının Fernet şifrelemesi
 ├── secrets_loader.py          # Secrets çözümleme
 ├── docker-compose.yml
 └── Dockerfile
@@ -536,7 +580,7 @@ DQ/
 ### Geliştirme Kuralları
 
 - Yeni assert tipi eklerken: `engine.py` → `config.py` → `test_engine.py`
-- Tüm testler geçmeli: `196 passed, 3 skipped`
+- Tüm testler geçmeli: `251 passed, 3 skipped` (son kayıt: 2026-11-09)
 - `from __future__ import annotations` ile `Optional[int]` type hint kullanma (Pydantic uyumsuz)
 - Mock path: `routers.api.get_conn` (test'lerde)
 
@@ -544,7 +588,7 @@ DQ/
 
 ## Lisans
 
-[Apache License 2.0](LICENSE)
+Apache License 2.0 (`LICENSE` dosyası henüz depoda yok)
 
 ---
 
