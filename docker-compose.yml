@@ -22,9 +22,9 @@ services:
       - METRICS_PG_PASSWORD
       - ALERT_SMTP_PASS
       - ALERT_SLACK_WEBHOOK
-    # Port 8002 tüm arayüzlere (0.0.0.0) bağlı; 127.0.0.1 yazılmadığı için dış IP üzerinden de ulaşılabilir. Erişim sunucu güvenlik duvarına bağlıdır (düzeltilmedi, bilgi amaçlı).
+    # Port yalnız 127.0.0.1'e bağlı: dış erişim nginx (HTTPS, 443) üzerinden olur. Docker yayınlanan portları UFW'den bağımsız açtığı için 0.0.0.0 bağlaması dışarıdan HTTP girişi açıyordu (2026-11-25 kontrolü).
     ports:
-      - "8002:8000"
+      - "127.0.0.1:8002:8000"
     # host.docker.internal: konteynerin sunucunun kendisine (host) bu adla erişmesini sağlar. host-gateway, Docker'ın sunucu adresini otomatik verir.
     extra_hosts:
       - "host.docker.internal:host-gateway"
