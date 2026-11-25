@@ -84,7 +84,7 @@
 
 <!-- Sayfa JavaScript'i. Akış: loadSources() kaynak listesini doldurur, sonra loadData() sonuçları çeker, tabloyu ve grafikleri çizer. Trend grafiğinde başarılı kontrol 1 (OK), başarısız 0 (FAIL) olarak çizilir. -->
 <!-- DİKKAT / TODO(kontrol): loadSources() '/sources' adresinden JSON bekliyor; ancak bu adres HTML sayfası döndürüyor. res.json() hata verir, loadData() çağrılmaz ve tablo 'Yükleniyor' yazısında kalır (anomali sayfasıyla aynı sorun). Kod değiştirilmedi. -->
-<!-- DİKKAT: Tablo satırları innerHTML ile ve kaçışsız yazılıyor (XSS riski). -->
+<!-- Tablo satırları innerHTML ile yazılır; tüm veri alanları esc() ile kaçışlanır (XSS). -->
 <script>
 let allRows = [];
 let pieChart, trendChart;
@@ -121,6 +121,7 @@ function filterTable() {
   renderTable(filtered);
 }
 
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 function renderTable(rows) {
   const tbody = document.getElementById('tableBody');
   if (!rows.length) {
@@ -129,12 +130,12 @@ function renderTable(rows) {
   }
   tbody.innerHTML = rows.map(r => `
     <tr>
-      <td><span class="badge badge-cross text-white">${r.check_name}</span></td>
+      <td><span class="badge badge-cross text-white">${esc(r.check_name)}</span></td>
       <td class="${r.passed ? 'passed' : 'failed'}">${r.passed ? '✅ OK' : '❌ FAIL'}</td>
-      <td>${r.value_actual ?? '-'}</td>
-      <td>${r.expected ?? '-'}</td>
-      <td class="text-muted small">${r.message ?? ''}</td>
-      <td class="text-muted small">${r.run_at ?? ''}</td>
+      <td>${esc(r.value_actual ?? '-')}</td>
+      <td>${esc(r.expected ?? '-')}</td>
+      <td class="text-muted small">${esc(r.message ?? '')}</td>
+      <td class="text-muted small">${esc(r.run_at ?? '')}</td>
     </tr>
   `).join('');
 }

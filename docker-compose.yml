@@ -51,7 +51,7 @@ secrets:
   ALERT_SLACK_WEBHOOK:
     file: ./secrets/files/ALERT_SLACK_WEBHOOK
 
-# 2026-10-18: veritabanı artık ortak MySQL (mysql-ortak, ağ ortak-db). Eski dq-db servisi/volume'ü (dq_docker_dq-mysql-data) yedek olarak duruyor.
+# 2026-10-18: veritabanı artık ortak MySQL (mysql-ortak, ağ ortak-db). Eski dq-db servisi ve volume'ü kaldırıldı (sunucuda dq_docker_dq-mysql-data volume'ü yok, 2026-11-25 kontrolü).
 # ortak-db ağı compose tarafından oluşturulmaz; önceden var olmalıdır (external: true).
 networks:
   ortak-db:

@@ -97,7 +97,7 @@
 
 <!-- Sayfa JavaScript'i. Akış: loadSources() kaynak listesini doldurur, sonra loadData() /api/anomaly-results sonuçlarını çeker, tabloyu ve grafikleri çizer. -->
 <!-- DİKKAT / TODO(kontrol): loadSources() '/sources' adresinden JSON bekliyor; ancak bu adres HTML sayfası döndürüyor. Bu durumda res.json() hata verir, loadData() hiç çağrılmaz ve tablo 'Yükleniyor' yazısında kalır. Kod değiştirilmedi. -->
-<!-- DİKKAT: Tablo satırları metin şablonuyla innerHTML'e yazılıyor; kontrol adı ve mesaj kaçışlanmadan basılıyor (XSS riski). -->
+<!-- Tablo satırları innerHTML ile yazılır; tüm veri alanları esc() ile kaçışlanır (XSS). -->
 <script>
 let allRows = [];
 let pieChart, typeChart;
@@ -139,6 +139,7 @@ function filterTable() {
   renderTable(filtered);
 }
 
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 function renderTable(rows) {
   const tbody = document.getElementById('tableBody');
   if (!rows.length) {
@@ -161,14 +162,14 @@ function renderTable(rows) {
     const score = scoreMatch ? `<span class="fw-bold">${scoreMatch[1]}</span>` : '-';
     return `
     <tr>
-      <td><span class="badge badge-anomaly text-white">${r.check_name}</span></td>
+      <td><span class="badge badge-anomaly text-white">${esc(r.check_name)}</span></td>
       <td class="${r.passed ? 'passed' : 'failed'}">${r.passed ? '✅ OK' : '❌ FAIL'}</td>
-      <td>${r.value_actual ?? '-'}</td>
-      <td>${r.expected ?? '-'}</td>
+      <td>${esc(r.value_actual ?? '-')}</td>
+      <td>${esc(r.expected ?? '-')}</td>
       <td>${methodWithTrend}</td>
       <td>${score}</td>
-      <td class="text-muted small">${msg}</td>
-      <td class="text-muted small">${r.run_at ?? ''}</td>
+      <td class="text-muted small">${esc(msg)}</td>
+      <td class="text-muted small">${esc(r.run_at ?? '')}</td>
     </tr>`;
   }).join('');
 }

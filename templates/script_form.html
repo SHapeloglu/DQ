@@ -113,8 +113,9 @@
 </div>
 
 {# Sayfa JavaScript'i: başlangıç şablonlarını textarea'ya yükler ve test isteğini gönderir. #}
-{# DİKKAT: Test sonucu ve hata metni innerHTML ile yazılıyor; metin HTML olarak çalışabilir (XSS riski). Kod değiştirilmedi, yalnız bilgi amaçlı not. #}
+{# Test sonucu ve hata metni innerHTML ile yazılır; tüm değerler esc() ile kaçışlanır (XSS). #}
 <script>
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 const templates = {
     range: `def check(value):
     # Değer belirtilen aralıkta mı?
@@ -165,22 +166,22 @@ function runTest() {
             resultDiv.innerHTML = `
                 <div class="alert alert-success">
                     <strong>✅ Geçti!</strong><br>
-                    Değer: <code>${data.value}</code><br>
-                    Sonuç: <code>${data.result}</code>
+                    Değer: <code>${esc(data.value)}</code><br>
+                    Sonuç: <code>${esc(data.result)}</code>
                 </div>
             `;
         } else {
             resultDiv.innerHTML = `
                 <div class="alert alert-danger">
                     <strong>❌ Hata</strong><br>
-                    ${data.error}
+                    ${esc(data.error)}
                 </div>
             `;
         }
     })
     .catch(e => {
         document.getElementById('testResult').innerHTML = `
-            <div class="alert alert-danger"><strong>Ağ Hatası:</strong> ${e}</div>
+            <div class="alert alert-danger"><strong>Ağ Hatası:</strong> ${esc(e)}</div>
         `;
     });
 }
