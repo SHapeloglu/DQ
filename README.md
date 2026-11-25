@@ -1,6 +1,6 @@
 # DQ — Data Quality Platform
 
-> **Durum notu (2026-11-14):** Bu belge kodla karşılaştırıldı (`main` f2bc7c6). Veritabanı bağlantısı ortak MySQL'deki **uygulama kullanıcısıdır** (`DB_HOST=mysql-ortak`, `DB_USER=uygulama`), root değildir. Kurulum için dışarıda hazır bir `mysql-ortak` konteyneri ve `ortak-db` Docker ağı gerekir. Yönlendirici dosyaları `routers/` altındadır. 2026-11-14 denetimi: aşağıdaki belge–kod farkları işaretlendi.
+> **Durum notu (2026-11-24):** Bu belge kodla karşılaştırıldı (`main` 846c71d). Veritabanı bağlantısı ortak MySQL'deki **uygulama kullanıcısıdır** (`DB_HOST=mysql-ortak`, `DB_USER=uygulama`), root değildir. Kurulum için dışarıda hazır bir `mysql-ortak` konteyneri ve `ortak-db` Docker ağı gerekir. Yönlendirici dosyaları `routers/` altındadır. 2026-11-14 denetimi: aşağıdaki belge–kod farkları işaretlendi.
 
 > **Self-hosted, açık kaynak veri kalitesi platformu.**  
 > PII/KVKK tespiti, anomali analizi ve 19 assert tipiyle rakip ticari çözümlere kıyasla **%99 daha düşük toplam sahip olma maliyeti.**
@@ -135,7 +135,7 @@ DQ, özellikle **PII-yoğun** ve **maliyet bilinçli** kuruluşlar için tasarla
 - CSV dosyaları
 - SQLAlchemy uyumlu herhangi bir kaynak
 
-> **Not:** CSV (DuckDB), PostgreSQL (psycopg2), BigQuery ve Oracle (cx_Oracle) sürücüleri `requirements.txt`'te yok; konteynerde bu kaynakların kullanımı ImportError verir.
+> **Not:** BigQuery (`google-cloud-bigquery`) ve Oracle (`cx_Oracle`) sürücüleri `requirements.txt`'te yok; bu kaynakların konteynerde kullanımı ImportError verir. DuckDB (CSV) ve psycopg2 (PostgreSQL) 2026-11-24'te eklendi. CSV kaynağı için `DQ_CSV_BASE` tanımlanmalıdır; yoksa kapalıdır.
 
 ---
 
@@ -215,7 +215,7 @@ psql -U postgres -c "CREATE DATABASE dqmetrics;"
 psql -U postgres -d dqmetrics -f scripts/migrate_metrics_postgres.sql
 
 # DSN'i secrets'a yaz
-echo "postgresql://dquser:pass@localhost:5432/dqmetrics" > secrets/files/METRICS_PG_DSN
+echo "postgresql://dquser:pass@<host>:<port>/dqmetrics" > secrets/files/METRICS_PG_DSN
 ```
 
 ### Read Replica (Kod hazır, bağlı değil)
@@ -580,7 +580,7 @@ DQ/
 ### Geliştirme Kuralları
 
 - Yeni assert tipi eklerken: `engine.py` → `config.py` → `test_engine.py`
-- Tüm testler geçmeli: `251 passed, 3 skipped` (son kayıt: 2026-11-09)
+- Tüm testler geçmeli: `260 passed, 3 skipped` (son kayıt: 2026-11-24)
 - `from __future__ import annotations` ile `Optional[int]` type hint kullanma (Pydantic uyumsuz)
 - Mock path: `routers.api.get_conn` (test'lerde)
 
