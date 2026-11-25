@@ -60,7 +60,6 @@ def _get_metric_store() -> MetricStore:
 
 def _get_custom_script_fn(script_id: int):
     """DB'den custom script yükleyip assertion fonksiyonu döner."""
-    import mysql.connector
     from database import get_conn, release_conn
     
     try:

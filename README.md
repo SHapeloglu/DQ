@@ -580,7 +580,7 @@ DQ/
 ### Geliştirme Kuralları
 
 - Yeni assert tipi eklerken: `engine.py` → `config.py` → `test_engine.py`
-- Tüm testler geçmeli: `260 passed, 3 skipped` (son kayıt: 2026-11-24)
+- Tüm testler geçmeli: `264 passed, 3 skipped` (son kayıt: 2026-11-25)
 - `from __future__ import annotations` ile `Optional[int]` type hint kullanma (Pydantic uyumsuz)
 - Mock path: `routers.api.get_conn` (test'lerde)
 
