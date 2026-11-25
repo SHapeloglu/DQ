@@ -6,6 +6,9 @@ from __future__ import annotations
 import json
 import re
 
+from secrets_loader import get_secret
+from sifre_kasasi import encrypt_config_password
+
 try:
     import tomllib
 except ImportError:
@@ -36,6 +39,23 @@ def _extract_column_from_query(query: str) -> str | None:
     return None
 
 
+def _parola_guvenli(config: dict) -> dict:
+    """
+    [source] içindeki `password` alanını DB'ye yazmadan önce hazırlar:
+    - `secret:<KEY>` referansı secrets_loader ile çözülür (tanımsızsa hata);
+    - düz parola `enc:` önekiyle şifrelenir (sifre_kasasi).
+    Parola hiçbir zaman düz metin olarak sources.config'e yazılmaz.
+    """
+    parola = config.get("password")
+    if isinstance(parola, str) and parola.startswith("secret:"):
+        anahtar = parola[len("secret:"):]
+        deger = get_secret(anahtar)
+        if not deger:
+            raise ValueError(f"TOML parola referansı çözülemedi: {anahtar} tanımlı değil")
+        config["password"] = deger
+    return encrypt_config_password(config)
+
+
 def toml_to_db(raw: dict, conn) -> dict:
     """
     TOML dict'ini sources + checks tablolarına kaydeder.
@@ -51,6 +71,7 @@ def toml_to_db(raw: dict, conn) -> dict:
 
     source_type   = source_raw.get("type", "csv")
     source_config = {k: v for k, v in source_raw.items() if k != "type"}
+    source_config = _parola_guvenli(source_config)
     source_name   = source_config.get("path", source_type).split("/")[-1]
 
     with conn.cursor() as cur:
