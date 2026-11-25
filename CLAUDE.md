@@ -17,7 +17,7 @@ docker compose ps
 docker logs --tail 100 dq-web
 docker exec -i mysql-ortak mysql -u uygulama -p"$ORTAK_SIFRE" dq   # şifre /opt/mysql-ortak/.env'de; md'ye yazma
 python -m py_compile main.py                              # hızlı sözdizimi kontrolü
-pytest                                                    # son kayıt: 260 passed, 3 skipped (2026-11-24, main 846c71d)
+pytest                                                    # son kayıt: 264 passed, 3 skipped (2026-11-25, main c03f307)
 ```
 
 ## Kurallar ve tuzaklar

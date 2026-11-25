@@ -1,6 +1,6 @@
 # DQ-main vs Rakipler — Benchmark Raporu
 
-**Tarih:** Ağustos 2026 | **DQ-main Versiyonu:** v1.0 (260 test, 3 skipped, 2026-11-24) | **Pazar:** Açık kaynak + self-hosted
+**Tarih:** Ağustos 2026 | **DQ-main Versiyonu:** v1.0 (264 test, 3 skipped, 2026-11-25) | **Pazar:** Açık kaynak + self-hosted
 
 ---
 
