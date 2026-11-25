@@ -18,9 +18,9 @@ load_dotenv()
 DB_CONFIG = {
     "host":     get_secret("DB_HOST", "localhost"),
     "port":     int(get_secret("DB_PORT", "3306")),
-    "user":     get_secret("DB_USER", "root"),
-    # DİKKAT: Gizli değer ve ortam değişkeni yoksa kodda yazılı varsayılan parola kullanılır. Üretimde mutlaka DB_PASSWORD verilmelidir.
-    "password": get_secret("DB_PASSWORD", "root"),
+    # Varsayılan kullanıcı/parola yok: DB_USER ve DB_PASSWORD tanımlı değilse _new_conn açık hata verir.
+    "user":     get_secret("DB_USER", ""),
+    "password": get_secret("DB_PASSWORD", ""),
     "db":       get_secret("DB_NAME", "dq"),
     "charset":  "utf8mb4",
     "cursorclass": pymysql.cursors.DictCursor,
@@ -42,6 +42,8 @@ class _DBPool:
 
     def _new_conn(self):
         """Yeni bir MySQL bağlantısı açar. Ayarlar `DB_CONFIG` sözlüğünden alınır. Bağlanamazsa pymysql hatası fırlar."""
+        if not self._config.get("user") or not self._config.get("password"):
+            raise RuntimeError("DB_USER ve DB_PASSWORD tanımlı değil (secret dosyası veya ortam değişkeni)")
         return pymysql.connect(**self._config)
 
     def get(self):

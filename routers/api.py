@@ -402,60 +402,6 @@ def api_pii_report_source(source_id: int):
         release_conn(conn)
     return {"source_id": source_id, "pii_columns": rows, "count": len(rows)}
 
-# ── PII / KVKK Raporu ─────────────────────────────────────────────────────────
-@router.get("/api/pii-report")
-def api_pii_report():
-    """
-    Bu rapor `column_profiles` tablosunda `is_pii = 1` olan (kişisel veri olarak işaretlenmiş) kolonları listeler. KVKK denetimi için kullanılır.
-    Bu, yukarıdaki aynı yollu tanımın birebir kopyasıdır. FastAPI ilk tanımı kullandığı için bu ikinci kopya işlevsizdir (DİKKAT: silinebilir; kod davranışı değişmez).
-    """
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT cp.source_id, s.name as source_name,
-                       cp.column_name, cp.pii_type,
-                       cp.is_pii, cp.tags
-                FROM column_profiles cp
-                JOIN sources s ON cp.source_id = s.id
-                WHERE cp.is_pii = 1
-                ORDER BY s.name, cp.column_name
-            """)
-            rows = cur.fetchall()
-    finally:
-        release_conn(conn)
-    summary: dict = {}
-    for r in rows:
-        sname = r["source_name"]
-        if sname not in summary:
-            summary[sname] = {"source_id": r["source_id"], "pii_columns": []}
-        summary[sname]["pii_columns"].append({
-            "column": r["column_name"],
-            "pii_type": r["pii_type"],
-            "tags": r["tags"],
-        })
-    return {
-        "total_pii_columns": len(rows),
-        "sources_affected": len(summary),
-        "report": summary,
-    }
-
-@router.get("/api/pii-report/{source_id}")
-def api_pii_report_source(source_id: int):
-    """Yukarıdaki aynı yollu tanımın birebir kopyasıdır. FastAPI ilk tanımı kullandığı için bu ikinci kopya işlevsizdir (DİKKAT: silinebilir; kod davranışı değişmez)."""
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT column_name, pii_type, tags, null_pct, distinct_count
-                FROM column_profiles
-                WHERE source_id = %s AND is_pii = 1
-                ORDER BY column_name
-            """, (source_id,))
-            rows = cur.fetchall()
-    finally:
-        release_conn(conn)
-    return {"source_id": source_id, "pii_columns": rows, "count": len(rows)}
 
 
 # ── Rule Library API ──────────────────────────────────────────────────────────
@@ -604,84 +550,84 @@ def api_distribution_results(source_id=None, limit: int = 200):
 
 @router.get("/api/profile-export/{source_id}")
 async def profile_export(source_id: int, format: str = "csv"):
-    """Profil istatistiklerini CSV/JSON olarak indir."""
+    """Profil istatistiklerini CSV/JSON olarak indir. Bağlantı DictCursor ile açıldığı için satırlar sözlük olarak okunur."""
+    from database import get_conn, release_conn
+    import json, csv, io
+    from datetime import datetime
+
+    def _ondalik(v):
+        return round(float(v) if v else 0, 2)
+
+    conn = None
     try:
-        from database import get_conn
-        import json, csv, io
-        from datetime import datetime
-        
         conn = get_conn()
         cursor = conn.cursor()
-        
         cursor.execute("""
-            SELECT source_id, column_name, col_type, row_count, null_pct, 
-                   distinct_count, min_val, max_val, avg_val, is_pii, 
+            SELECT source_id, column_name, col_type, row_count, null_pct,
+                   distinct_count, min_val, max_val, avg_val, is_pii,
                    pii_type, business_name, description, owner, tags
-            FROM column_profiles 
+            FROM column_profiles
             WHERE source_id = %s
             ORDER BY column_name
         """, (source_id,))
-        
         rows = cursor.fetchall()
+        cursor.close()
         if not rows:
             raise HTTPException(status_code=404, detail="Profil verisi bulunamadı")
-        
-        cursor.close()
-        
+
+        stamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         if format == "json":
-            data = []
-            for row in rows:
-                data.append({
-                    "column_name": row[1],
-                    "type": row[2],
-                    "row_count": row[3],
-                    "null_pct": round(float(row[4]) if row[4] else 0, 2),
-                    "distinct_count": row[5],
-                    "min": row[6],
-                    "max": row[7],
-                    "avg": round(float(row[8]) if row[8] else 0, 2),
-                    "is_pii": bool(row[9]),
-                    "pii_type": row[10],
-                    "business_name": row[11],
-                    "description": row[12],
-                    "owner": row[13],
-                    "tags": row[14]
-                })
-            
+            data = [{
+                "column_name": r["column_name"],
+                "type": r["col_type"],
+                "row_count": r["row_count"],
+                "null_pct": _ondalik(r["null_pct"]),
+                "distinct_count": r["distinct_count"],
+                "min": r["min_val"],
+                "max": r["max_val"],
+                "avg": _ondalik(r["avg_val"]),
+                "is_pii": bool(r["is_pii"]),
+                "pii_type": r["pii_type"],
+                "business_name": r["business_name"],
+                "description": r["description"],
+                "owner": r["owner"],
+                "tags": r["tags"],
+            } for r in rows]
             output = json.dumps(data, indent=2, ensure_ascii=False)
-            filename = f"profile_source_{source_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            filename = f"profile_source_{source_id}_{stamp}.json"
             return StreamingResponse(
                 iter([output.encode('utf-8')]),
                 media_type="application/json",
                 headers={"Content-Disposition": f"attachment; filename={filename}"}
             )
-        
-        else:  # CSV
-            output = io.StringIO()
-            writer = csv.writer(output)
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow([
+            "Column", "Type", "RowCount", "NullPct", "DistinctCount",
+            "Min", "Max", "Avg", "IsPII", "PIIType", "BusinessName",
+            "Description", "Owner", "Tags"
+        ])
+        for r in rows:
             writer.writerow([
-                "Column", "Type", "RowCount", "NullPct", "DistinctCount",
-                "Min", "Max", "Avg", "IsPII", "PIIType", "BusinessName",
-                "Description", "Owner", "Tags"
+                r["column_name"], r["col_type"], r["row_count"],
+                _ondalik(r["null_pct"]),
+                r["distinct_count"], r["min_val"], r["max_val"],
+                _ondalik(r["avg_val"]),
+                "Yes" if r["is_pii"] else "No",
+                r["pii_type"], r["business_name"], r["description"], r["owner"], r["tags"]
             ])
-            for row in rows:
-                writer.writerow([
-                    row[1], row[2], row[3],
-                    round(float(row[4]) if row[4] else 0, 2),
-                    row[5], row[6], row[7],
-                    round(float(row[8]) if row[8] else 0, 2),
-                    "Yes" if row[9] else "No",
-                    row[10], row[11], row[12], row[13], row[14]
-                ])
-            
-            filename = f"profile_source_{source_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-            return StreamingResponse(
-                iter([output.getvalue().encode('utf-8')]),
-                media_type="text/csv",
-                headers={"Content-Disposition": f"attachment; filename={filename}"}
-            )
-    
+        filename = f"profile_source_{source_id}_{stamp}.csv"
+        return StreamingResponse(
+            iter([output.getvalue().encode('utf-8')]),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn is not None:
+            release_conn(conn)

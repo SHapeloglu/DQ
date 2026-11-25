@@ -6,7 +6,7 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Sistem bağımlılıkları
-# gcc ve MySQL istemci geliştirme dosyaları: mysqlclient paketi C kodu derler, bu araçlar olmadan kurulum hata verir.
+# gcc ve MySQL istemci geliştirme dosyaları: requirements.txt'te derleme gerektiren bir paket çıkarsa diye tutulur. pymysql saf Python'dur; mysqlclient kullanılmaz. Kaldırma yalnızca imaj build'iyle doğrulanmalı.
 # pkg-config derleme ayarlarını bulmaya yarar. Sonundaki 'rm' ile apt önbelleği silinir, imaj küçülür.
 RUN apt-get update && apt-get install -y \
     gcc \
