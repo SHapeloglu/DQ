@@ -26,6 +26,8 @@ import hmac
 import os
 import secrets
 import sys
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -307,6 +309,52 @@ def _cookie_secure() -> bool:
     return os.environ.get("DQ_COOKIE_SECURE", "").strip().lower() in ("1", "true", "yes")
 
 
+# ── Giriş deneme sınırı ──────────────────────────────────────────────────────
+# Anahtar: (kullanıcı adı, istemci IP). IP nginx arkasında X-Real-IP'den alınır; tek IP'den tüm kullanıcılar kilitlenmesin diye kullanıcı adı da anahtara girer.
+# Süreç içi bellek: tek worker için geçerlidir (dq-web tek işçi çalışır). Konteyner yeniden başlarsa sayaçlar sıfırlanır.
+LOGIN_MAX_DENEME = 5          # bu kadar hatalı denemeden sonra kilit
+LOGIN_PENCERE_SN = 900        # hatalar bu pencere içinde sayılır (15 dk)
+LOGIN_KILIT_SN = 300          # kilit süresi (5 dk)
+
+_denemeler: dict = {}         # anahtar -> {"sayi": int, "ilk": float, "kilit_bitis": float}
+_denemeler_kilit = threading.Lock()
+
+
+def _giris_anahtari(username: str, request: Request) -> tuple:
+    ip = request.headers.get("x-real-ip") or (request.client.host if request.client else "-")
+    return (username.strip().lower(), ip)
+
+
+def _kilit_kalan_sn(anahtar: tuple, now: float | None = None) -> int:
+    """Kilit varsa kalan saniyeyi döner; yoksa 0."""
+    now = time.time() if now is None else now
+    with _denemeler_kilit:
+        kayit = _denemeler.get(anahtar)
+        if not kayit or kayit.get("kilit_bitis", 0) <= now:
+            return 0
+        return int(kayit["kilit_bitis"] - now) + 1
+
+
+def _basarisiz_kaydet(anahtar: tuple, now: float | None = None) -> None:
+    now = time.time() if now is None else now
+    with _denemeler_kilit:
+        # Süresi dolmuş kayıtları temizle (bellek büyümesin).
+        for k in [k for k, v in _denemeler.items() if now - v["ilk"] > LOGIN_PENCERE_SN and v.get("kilit_bitis", 0) <= now]:
+            del _denemeler[k]
+        kayit = _denemeler.get(anahtar)
+        if not kayit or now - kayit["ilk"] > LOGIN_PENCERE_SN:
+            kayit = {"sayi": 0, "ilk": now, "kilit_bitis": 0}
+            _denemeler[anahtar] = kayit
+        kayit["sayi"] += 1
+        if kayit["sayi"] >= LOGIN_MAX_DENEME:
+            kayit["kilit_bitis"] = now + LOGIN_KILIT_SN
+
+
+def _basarili_giris_sifirla(anahtar: tuple) -> None:
+    with _denemeler_kilit:
+        _denemeler.pop(anahtar, None)
+
+
 # ── Auth route'larını kaydet ──────────────────────────────────────────────────
 
 def register_auth_routes(app, templates, get_conn_fn):
@@ -333,6 +381,15 @@ def register_auth_routes(app, templates, get_conn_fn):
         username = form.get("username", "")
         password = form.get("password", "")
 
+        anahtar = _giris_anahtari(username, request)
+        kalan = _kilit_kalan_sn(anahtar)
+        if kalan:
+            # Kilitliyken şifre denenmez; kullanıcı var mı yok mu bilgisi sızdırılmaz.
+            return RedirectResponse(
+                f"/login?error=Çok+fazla+hatalı+deneme.+{kalan}+saniye+sonra+tekrar+deneyin",
+                status_code=303
+            )
+
         conn = get_conn_fn()
         try:
             ensure_users_table(conn)
@@ -341,10 +398,12 @@ def register_auth_routes(app, templates, get_conn_fn):
             conn.close()
 
         if not user:
+            _basarisiz_kaydet(anahtar)
             return RedirectResponse(
                 "/login?error=Kullanıcı+adı+veya+şifre+hatalı",
                 status_code=303
             )
+        _basarili_giris_sifirla(anahtar)
 
         token = create_token({
             "sub":  user["username"],
