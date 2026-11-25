@@ -10,3 +10,4 @@ venv/
 !.claude/
 secrets/.env.secrets
 secrets/files/
+data/
