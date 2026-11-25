@@ -34,6 +34,9 @@ services:
     # ./dags klasörü konteynere bağlanır (bind mount). Bu klasördeki dosya değişiklikleri konteynerde hemen görünür.
     volumes:
       - ./dags:/app/dags
+      # Metrik deposu (sqlite, varsayılan): dosya konteyner yeniden build edildiğinde kaybolmasın diye ana makinede tutulur.
+      # Dosya önceden oluşturulmalı ve uid 10001'e ait olmalı: data/dq_metrics.db
+      - ./data/dq_metrics.db:/app/dq_metrics.db
 
 # Gizli değerlerin kaynak dosyaları. Her biri secrets/files altındaki ayrı bir dosyadır; içerikleri burada yazılmaz.
 secrets:
