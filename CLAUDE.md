@@ -29,7 +29,7 @@ pytest                                                    # son kayıt: 260 pass
 - Sırlar: `.env`, `secrets/files/` ve `secrets/.env.secrets` git'e girmez. `secrets/.env.secrets.gpg` (şifreli kopya) bilinçli olarak git'te tutulur. Değer okunmaz, yalnız değişken adı yazılır. Bu kural `DQ_SECRET_KEY`, `DQ_ADMIN_PASSWORD`, `DQ_API_TOKEN`, `DQ_ENC_KEY` için de geçerlidir.
 - Özel script güvenliği: AST doğrulaması ve öznitelik allowlist'i var ama sandbox tam değil (bkz. `task.md`). Kayıt ve test sırasında kod çalıştırılmaz (`CUSTOM_SCRIPT_CALISTIR=False`, routers/scripts.py; kayıt yalnızca `ast.parse`). Özel script kontrol olarak bağlı değil (`custom_script` assertion map'te yok; `task.md` 🔴).
 - CSV kaynağı: `DQ_CSV_BASE` tanımlı değilse kapalı; tanımlıysa yalnız o dizin altındaki dosyalar okunur (`dq/connectors.py`).
-- Metrik deposu: `METRICS_PG_DSN` tanımlıysa PostgreSQL backend seçilir; 2026-11-24 itibarıyla bağlantı açılamıyor (bkz. `task.md` 🔴).
+- Metrik deposu: canlıda sqlite (`data/dq_metrics.db` bind mount, 2026-11-25 kararı). `METRICS_PG_DSN` tanımlanırsa PostgreSQL backend seçilir; bu yol kanıtlı çalışmıyor (bkz. `task.md`).
 - `get_conn()` havuzdan bağlantı alır; iş bitince `release_conn(conn)` ile iade et.
 - TOML'da şifre: `password = "secret:DB_PASSWORD"` öneki (`secrets_loader`); değer değil, değişken adı yazılır.
 - Büyük değişiklik sırası: `py_compile` → `pytest` → Docker build.
