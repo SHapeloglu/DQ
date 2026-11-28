@@ -1,10 +1,10 @@
 # DQ-main vs Rakipler — Benchmark Raporu
 
-**Tarih:** Ağustos 2026 | **DQ-main Versiyonu:** v1.0 (264 test, 3 skipped, 2026-11-25) | **Pazar:** Açık kaynak + self-hosted
+**Tarih:** Ağustos 2026 | **DQ-main Versiyonu:** v1.0 (274 test, 3 skipped, 2026-11-28) | **Pazar:** Açık kaynak + self-hosted
 
 ---
 
-## 1. Özellik Karşılaştırması (19 Assert Tipi)
+## 1. Özellik Karşılaştırması (19 özellik; manuel karşılaştırma, doğrulanmadı)
 
 | Assert Tipi | DQ-main | Dataplex | Soda Core | Great Expectations | AWS Glue |
 |---|:---:|:---:|:---:|:---:|:---:|
@@ -38,7 +38,7 @@
 | Z-Score | ✅ | ❌ | ❌ | ❌ | ❌ |
 | EWMA (Exponential) | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Holt-Winters | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Otomatik Seçim (n<8→z, n<14→ewma, n>=14→hw) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Otomatik Seçim (kod: n<5→z, 5–13→ewma, ≥14→hw) | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Trend Yönü (↑/→/↓, %5 tolerans) | ✅ | ❌ | ❌ | ❌ | ❌ |
 | ML-based DetectAnomalies | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Yöntem Filtresi UI | ✅ | ✅ | ❌ | ❌ | ❌ |
@@ -52,7 +52,7 @@
 
 | Özellik | DQ-main | Dataplex | Soda | GE | Glue |
 |---|:---:|:---:|:---:|:---:|:---:|
-| Pattern-based PII (24 pattern) | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Pattern-based PII (kodda 11 regex + anahtar kelime listesi) | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Enum önerisi | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Regex önerisi | ✅ | ❌ | ❌ | ❌ | ❌ |
 | PII Dashboard | ✅ | ✅ | ❌ | ❌ | ❌ |

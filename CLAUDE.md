@@ -1,6 +1,6 @@
 # CLAUDE.md — DQ (Veri Kalitesi Platformu)
 
-Self-hosted veri kalitesi platformu: FastAPI web arayüzü (`dq-web`), 19 assert tipi, anomali tespiti (z-score, EWMA, Holt-Winters), PII/KVKK tespiti ve Airflow DAG'ları ile çalışır. Kontroller Airflow'dan çalışır; web arayüzünden kontrol çalıştırma yoktur. Ayrıntılı mimari: `architect.md`.
+Self-hosted veri kalitesi platformu: FastAPI web arayüzü (`dq-web`), 17 çağrılabilir assert tipi (engine'de 25 fabrika), anomali tespiti (z-score, EWMA, Holt-Winters), PII/KVKK tespiti ve Airflow DAG'ları ile çalışır. Kontroller Airflow'dan çalışır; web arayüzünden kontrol çalıştırma yoktur. Ayrıntılı mimari: `architect.md`.
 
 ## Konum
 
@@ -17,7 +17,7 @@ docker compose ps
 docker logs --tail 100 dq-web
 docker exec -i mysql-ortak mysql -u uygulama -p"$ORTAK_SIFRE" dq   # şifre /opt/mysql-ortak/.env'de; md'ye yazma
 python -m py_compile main.py                              # hızlı sözdizimi kontrolü
-pytest                                                    # son kayıt: 264 passed, 3 skipped (2026-11-25, main c03f307)
+pytest                                                    # son kayıt: 274 passed, 3 skipped (2026-11-28, main dae959c)
 ```
 
 ## Kurallar ve tuzaklar

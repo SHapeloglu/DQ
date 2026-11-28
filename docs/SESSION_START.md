@@ -8,12 +8,12 @@ Stack: FastAPI + MySQL 8.0 + Airflow + Docker Compose
 
 ## Mimari (Özet)
 
-- `dq/engine.py` → CheckEngine + 19 assert tipi ✅
+- `dq/engine.py` → CheckEngine + 17 çağrılabilir assert tipi ✅
   Tüm assert tipleri: not_empty, regex_match, accepted_values, freshness_hours,
   row_count_between, referential_integrity, equals, between, greater_than, less_than,
   completeness_ratio, statistical_anomaly, schema_drift, schema_check,
   duplicate_row, custom_sql, volume_anomaly, zscore_anomaly, row_condition
-- `dq/config.py` → SodaConfig + _resolve_env_vars() + _ASSERTION_MAP (19 entry) + _get_metric_store() ✅
+- `dq/config.py` → SodaConfig + _resolve_env_vars() + _ASSERTION_MAP (17 entry) + _get_metric_store() ✅
 - `dq/anomaly.py` → AnomalyDetector (z-score + EWMA + Holt-Winters otomatik seçim) + **_detect_trend() trend yönü** ✅
 - `dq/metrics.py` → MetricStore (SQLite dev + Postgres prod) + **read_replica_dsn read-write split** ✅
 - `dq/connectors.py` → BaseConnector + 8 veritabanı tipi
