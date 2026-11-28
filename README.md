@@ -3,7 +3,7 @@
 > **Durum notu (2026-11-24):** Bu belge kodla karşılaştırıldı (`main` 846c71d). Veritabanı bağlantısı ortak MySQL'deki **uygulama kullanıcısıdır** (`DB_HOST=mysql-ortak`, `DB_USER=uygulama`), root değildir. Kurulum için dışarıda hazır bir `mysql-ortak` konteyneri ve `ortak-db` Docker ağı gerekir. Yönlendirici dosyaları `routers/` altındadır. 2026-11-14 denetimi: aşağıdaki belge–kod farkları işaretlendi.
 
 > **Self-hosted, açık kaynak veri kalitesi platformu.**  
-> PII/KVKK tespiti, anomali analizi ve 19 assert tipiyle rakip ticari çözümlere kıyasla **%99 daha düşük toplam sahip olma maliyeti.**
+> PII/KVKK tespiti, anomali analizi ve 17 çağrılabilir assert tipiyle rakip ticari çözümlere kıyasla **tahmini %99 daha düşük toplam sahip olma maliyeti.**
 >
 > *Not: Bu rakamlar kaynaklı doğrulanmadı (bkz. `docs/BENCHMARK.md`).*
 
@@ -39,12 +39,14 @@
 
 | | DQ | Google Dataplex | AWS Glue DQ | Soda Core |
 |---|:---:|:---:|:---:|:---:|
-| **Assert tipi sayısı** | **19** | 17 | 15 | 15 |
+| **Assert tipi sayısı** | **17** | 17 | 15 | 15 |
 | **PII/KVKK tespiti** | ✅ | ✅ | ❌ | ❌ |
 | **Anomali (istatistiksel)** | ✅ Z-score + EWMA + HW | Sınırlı | ML blackbox | ❌ |
 | **Self-hosted** | ✅ | ❌ | ❌ | ✅ |
 | **Yıllık TCO (100TB)** | **~$500** | ~$150.000+ | ~$100.000+ | ~$500 |
 | **Genel Puan** | **8.3/10** | 8.1/10 | 8.1/10 | 6.6/10 |
+
+> Maliyet ve puan satırları yazar tahminidir (öznel değerlendirme); ölçülmemiştir. Rakip assert sayıları manuel karşılaştırmadır, doğrulanmamıştır.
 
 DQ, özellikle **PII-yoğun** ve **maliyet bilinçli** kuruluşlar için tasarlanmıştır. KVKK uyumluluğu gerektiren Türkiye bazlı ekipler için birincil tercih olarak konumlandırılmıştır.
 
@@ -52,7 +54,7 @@ DQ, özellikle **PII-yoğun** ve **maliyet bilinçli** kuruluşlar için tasarla
 
 ## Özellikler
 
-### 🔍 19 Assert Tipi
+### 🔍 Assert Tipleri (17 çağrılabilir)
 `not_empty`, `regex_match`, `accepted_values`, `freshness_hours`, `row_count_between`, `referential_integrity`, `equals`, `between`, `greater_than`, `less_than`, `completeness_ratio`, `statistical_anomaly`, `schema_drift`, `schema_check`, `duplicate_row`, `custom_sql`, `volume_anomaly`, `zscore_anomaly`, `row_condition`
 
 > **Not:** Kullanılabilir (`_ASSERTION_MAP`) assert adları 17 tanedir; `not_empty`, `regex_match`, `accepted_values`, `freshness_hours` yalnızca engine'de tanımlı, konfigürasyondan çağrılamaz.
@@ -104,7 +106,7 @@ DQ, özellikle **PII-yoğun** ve **maliyet bilinçli** kuruluşlar için tasarla
 │                        │                                  │
 │  ┌─────────────────────▼──────────────────────────────┐ │
 │  │               CheckEngine (dq/engine.py)            │ │
-│  │  19 Assert Tipi + custom_script_assertion()         │ │
+│  │  17 Assert Tipi + custom_script_assertion()         │ │
 │  └─────────────────────┬──────────────────────────────┘ │
 │                         │                                 │
 │  ┌──────────────────────▼─────────────────────────────┐ │
@@ -533,7 +535,7 @@ bash scripts/decrypt_secrets.sh
 ```
 DQ/
 ├── dq/                        # Çekirdek motor
-│   ├── engine.py              # CheckEngine + 19 assert tipi
+│   ├── engine.py              # CheckEngine + assert fabrikaları
 │   ├── anomaly.py             # AnomalyDetector (Z-Score, EWMA, Holt-Winters)
 │   ├── config.py              # SodaConfig + _ASSERTION_MAP
 │   ├── metrics.py             # MetricStore (SQLite/PostgreSQL)

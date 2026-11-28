@@ -4,7 +4,7 @@ PostgreSQL veritabanında veri kalitesi kontrolleri çalıştırır.
 """
 from airflow import DAG
 from airflow.utils.dates import days_ago
-from dq_operator import DQOperator
+from dq.airflow import DQOperator
 
 with DAG(
     dag_id="dq_postgres_integration",

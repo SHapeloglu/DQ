@@ -8,7 +8,7 @@ dq_mysql_dag.py — DQ MySQL entegrasyon DAG'ı.
 
 from airflow import DAG
 from airflow.utils.dates import days_ago
-from dq_operator import DQOperator
+from dq.airflow import DQOperator
 
 with DAG(
     dag_id="dq_mysql_integration",

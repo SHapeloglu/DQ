@@ -7,14 +7,14 @@ python-dotenv==1.0.1
 tomli==2.0.1
 pydantic==2.6.4
 cryptography==42.0.5
-pymongo>=4.0
+pymongo>=4.6,<5
 # Metrik deposu (METRICS_PG_DSN tanımlıysa dq/metrics.py postgres backend) ve PostgreSQL connector psycopg2 kullanır.
 # Önceden eksikti: canlıda trend/anomali kontrolleri ImportError alabilirdi (2026-11-24 tespiti).
 psycopg2-binary==2.9.10
 # CsvConnector (dq/connectors.py) DuckDB kullanır; önceden bu bağımlılık eksikti.
 duckdb==2.0.1
-ibm-db>=2.3.0
-ibm-db-sa>=0.4.0
+ibm-db>=3.0,<4
+ibm-db-sa>=0.4.0,<0.6
 statsmodels==0.14.2
 # pandas 3.x ile statsmodels 0.14.2 uyumsuz: holtwinters import'u TypeError verir ve anomali sonucu sessizce False döner (2026-11-19)
 pandas>=2.0,<3
@@ -22,3 +22,5 @@ numpy==1.26.4
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
+# Testler (FastAPI TestClient) için; Starlette 0.36.3 ile 0.29+ uyumsuz (2026-11-28 doğrulama).
+httpx==0.27.2
